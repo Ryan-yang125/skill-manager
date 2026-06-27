@@ -28,7 +28,7 @@ let package = Package(
         .executableTarget(
             name: "SkillManagerApp",
             dependencies: ["SkillManagerCore"],
-            exclude: ["Info.plist"]
+            exclude: ["Info.plist", "Resources"]
         ),
         .executableTarget(
             name: "SkillManagerScan",

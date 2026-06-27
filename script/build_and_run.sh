@@ -14,6 +14,7 @@ APP_MACOS="$APP_CONTENTS/MacOS"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 SOURCE_INFO_PLIST="$ROOT_DIR/Sources/SkillManagerApp/Info.plist"
+APP_RESOURCES_SRC="$ROOT_DIR/Sources/SkillManagerApp/Resources"
 
 build_bundle() {
   cd "$ROOT_DIR"
@@ -25,6 +26,9 @@ build_bundle() {
   mkdir -p "$APP_CONTENTS/Resources"
   cp "$build_binary" "$APP_BINARY"
   cp "$SOURCE_INFO_PLIST" "$INFO_PLIST"
+  if [ -d "$APP_RESOURCES_SRC" ]; then
+    cp -R "$APP_RESOURCES_SRC"/. "$APP_CONTENTS/Resources/"
+  fi
   chmod +x "$APP_BINARY"
   /usr/bin/codesign --force --deep --sign - "$APP_BUNDLE" >/dev/null
 }
@@ -61,7 +65,12 @@ case "$MODE" in
   --verify|verify)
     build_bundle
     open_app
-    sleep 2
+    for _ in {1..20}; do
+      if pgrep -x "$APP_NAME" >/dev/null; then
+        exit 0
+      fi
+      sleep 0.25
+    done
     pgrep -x "$APP_NAME" >/dev/null
     ;;
   *)
