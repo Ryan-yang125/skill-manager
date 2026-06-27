@@ -29,7 +29,7 @@ Project-level skills are intentionally out of scope for the first release.
 
 ## Install From GitHub Release
 
-1. Download `SkillManager-v0.1.0-macos.zip` from the latest release.
+1. Download `SkillManager-v0.1.1-macos.zip` from the latest release.
 2. Unzip it.
 3. Open `SkillManager.app`.
 
