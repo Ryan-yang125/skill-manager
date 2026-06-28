@@ -100,7 +100,7 @@ struct SidebarView: View {
                         .labelStyle(.titleAndIcon)
                 }
                 .buttonStyle(.borderless)
-                .disabled(model.isScanning)
+                .disabled(model.isScanning || model.isArchiving)
 
                 Spacer()
             }

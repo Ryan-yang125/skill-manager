@@ -27,6 +27,14 @@ public final class InventoryService: @unchecked Sendable {
         )
     }
 
+    public func defaultRoots() -> [SkillRoot] {
+        scanner.defaultRoots()
+    }
+
+    public func auditReport(for inventory: SkillInventory, generatedAt: Date = Date()) -> InventoryAuditReport {
+        inventory.auditReport(roots: scanner.defaultRoots(), generatedAt: generatedAt)
+    }
+
     @discardableResult
     public func archive(_ skill: SkillRecord) throws -> ArchivedSkill {
         try archiveStore.archive(skill)

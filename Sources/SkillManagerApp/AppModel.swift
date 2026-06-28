@@ -46,6 +46,14 @@ final class AppModel: ObservableObject {
         }
     }
 
+    enum UpdateCheckState: Equatable {
+        case idle
+        case checking
+        case current(String)
+        case available(ReleaseCheckResult)
+        case failed(String)
+    }
+
     struct SkillCollection: Identifiable, Hashable {
         var id: String
         var title: String
@@ -63,8 +71,12 @@ final class AppModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var pendingArchiveSkill: SkillRecord?
     @Published var confirmingArchiveSuggested = false
+    @Published var auditReport: InventoryAuditReport?
+    @Published var updateCheckState: UpdateCheckState = .idle
+    @Published var isArchiving = false
 
     private let service = InventoryService()
+    private let updateChecker = ReleaseUpdateChecker()
 
     var filteredSkills: [SkillRecord] {
         sortedSkills(searchFilteredSkills(baseSkillsForSelection()))
@@ -77,6 +89,36 @@ final class AppModel: ObservableObject {
 
     var archiveCandidatesCount: Int {
         inventory.archiveCandidates.count
+    }
+
+    var currentVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+    }
+
+    var updateStatusText: String {
+        switch updateCheckState {
+        case .idle:
+            return "未检查更新"
+        case .checking:
+            return "正在检查更新"
+        case .current(let version):
+            return "已是最新 \(version)"
+        case .available(let result):
+            return "可更新到 \(result.tagName)"
+        case .failed(let message):
+            return message
+        }
+    }
+
+    var updateActionTitle: String {
+        switch updateCheckState {
+        case .available:
+            return "下载更新"
+        case .checking:
+            return "检查中"
+        default:
+            return "检查更新"
+        }
     }
 
     var healthScore: Int {
@@ -190,6 +232,10 @@ final class AppModel: ObservableObject {
     }
 
     func reload() {
+        reload(statusAfterScan: nil)
+    }
+
+    private func reload(statusAfterScan: String?) {
         guard !isScanning else { return }
         isScanning = true
         statusMessage = "扫描中"
@@ -202,21 +248,27 @@ final class AppModel: ObservableObject {
             }.value
 
             inventory = result
+            auditReport = service.auditReport(for: result)
             selectedSkillID = filteredSkills.first?.id
-            statusMessage = "上次扫描 \(SkillFormatting.relativeDate(result.scannedAt))"
+            statusMessage = statusAfterScan ?? "上次扫描 \(SkillFormatting.relativeDate(result.scannedAt))"
             isScanning = false
         }
     }
 
     func archive(_ skill: SkillRecord) {
+        guard !isArchiving else { return }
+        isArchiving = true
+        statusMessage = "正在归档 \(skill.title)"
         Task {
             do {
                 let service = self.service
                 _ = try await Task.detached(priority: .userInitiated) {
                     try service.archive(skill)
                 }.value
-                reload()
+                isArchiving = false
+                reload(statusAfterScan: "已归档 \(skill.title)，可在“已归档”恢复")
             } catch {
+                isArchiving = false
                 errorMessage = error.localizedDescription
             }
         }
@@ -229,19 +281,30 @@ final class AppModel: ObservableObject {
     func archiveSuggested() {
         let candidates = inventory.archiveCandidates
         guard !candidates.isEmpty else { return }
+        guard !isArchiving else { return }
+        isArchiving = true
+        statusMessage = "正在归档建议项"
         Task {
-            do {
-                let service = self.service
-                try await Task.detached(priority: .userInitiated) {
-                    for skill in candidates {
+            let service = self.service
+            let result = await Task.detached(priority: .userInitiated) {
+                var archivedCount = 0
+                var failures: [String] = []
+                for skill in candidates {
+                    do {
                         _ = try service.archive(skill)
+                        archivedCount += 1
+                    } catch {
+                        failures.append("\(skill.title)：\(error.localizedDescription)")
                     }
-                }.value
-                reload()
-            } catch {
-                errorMessage = error.localizedDescription
-                reload()
+                }
+                return (archivedCount, failures)
+            }.value
+
+            isArchiving = false
+            if !result.1.isEmpty {
+                errorMessage = result.1.prefix(3).joined(separator: "\n")
             }
+            reload(statusAfterScan: "已归档 \(result.0) 个建议项")
         }
     }
 
@@ -250,16 +313,48 @@ final class AppModel: ObservableObject {
     }
 
     func restore(_ archived: ArchivedSkill) {
+        guard !isArchiving else { return }
+        isArchiving = true
+        statusMessage = "正在恢复 \(archived.title)"
         Task {
             do {
                 let service = self.service
                 try await Task.detached(priority: .userInitiated) {
                     try service.restore(archived)
                 }.value
-                reload()
+                isArchiving = false
+                reload(statusAfterScan: "已恢复 \(archived.title)")
             } catch {
+                isArchiving = false
                 errorMessage = error.localizedDescription
             }
+        }
+    }
+
+    func checkForUpdates() {
+        guard updateCheckState != .checking else { return }
+        updateCheckState = .checking
+
+        Task {
+            do {
+                let checker = self.updateChecker
+                let currentVersion = self.currentVersion
+                let result = try await checker.check(currentVersion: currentVersion)
+                updateCheckState = result.isUpdateAvailable ? .available(result) : .current(currentVersion)
+            } catch {
+                updateCheckState = .failed("更新检查失败")
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func openUpdateRelease() {
+        if case .available(let result) = updateCheckState {
+            NSWorkspace.shared.open(result.releaseURL)
+            return
+        }
+        if let url = URL(string: "https://github.com/Ryan-yang125/skill-manager/releases/latest") {
+            NSWorkspace.shared.open(url)
         }
     }
 

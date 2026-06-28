@@ -42,13 +42,14 @@ struct MainContentView: View {
                 } label: {
                     Label(model.isScanning ? "扫描中" : "重新扫描", systemImage: model.isScanning ? "arrow.triangle.2.circlepath" : "arrow.clockwise")
                 }
-                .disabled(model.isScanning)
+                .disabled(model.isScanning || model.isArchiving)
 
                 if model.selectedFilter == .section(.suggested), model.archiveCandidatesCount > 0 {
                     Button("全部归档") {
                         model.requestArchiveSuggested()
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(model.isArchiving)
                 }
             }
 
@@ -66,6 +67,20 @@ struct MainContentView: View {
                 .frame(width: 150)
 
                 Spacer()
+
+                Text(model.updateStatusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Button(model.updateActionTitle) {
+                    if case .available = model.updateCheckState {
+                        model.openUpdateRelease()
+                    } else {
+                        model.checkForUpdates()
+                    }
+                }
+                .disabled(model.updateCheckState == .checking)
             }
         }
         .padding(.horizontal, 24)
@@ -88,6 +103,7 @@ struct MainContentView: View {
                             skill: skill,
                             familyTitle: familyTitle(for: skill),
                             isSelected: model.selectedSkillID == skill.id,
+                            archiveDisabled: model.isArchiving,
                             onSelect: { model.selectedSkillID = skill.id },
                             onArchive: { model.requestArchive(skill) },
                             onReveal: { model.reveal(skill) }
@@ -109,6 +125,7 @@ struct MainContentView: View {
                     ForEach(model.inventory.archived) { archived in
                         ArchivedSkillRowView(
                             archived: archived,
+                            restoreDisabled: model.isArchiving,
                             onRestore: { model.restore(archived) },
                             onReveal: { model.reveal(archived) }
                         )
@@ -130,6 +147,7 @@ private struct SkillRowView: View {
     let skill: SkillRecord
     let familyTitle: String?
     let isSelected: Bool
+    let archiveDisabled: Bool
     let onSelect: () -> Void
     let onArchive: () -> Void
     let onReveal: () -> Void
@@ -171,6 +189,7 @@ private struct SkillRowView: View {
                         if skill.recommendation == .archive || skill.recommendation == .review {
                             Button("归档", action: onArchive)
                                 .buttonStyle(.bordered)
+                                .disabled(archiveDisabled)
                         }
                     }
 
@@ -207,6 +226,7 @@ private struct SkillRowView: View {
             Button("在 Finder 显示", action: onReveal)
             if skill.recommendation == .archive || skill.recommendation == .review {
                 Button("归档", action: onArchive)
+                    .disabled(archiveDisabled)
             }
         }
     }
@@ -260,6 +280,7 @@ private struct SkillRowView: View {
 
 private struct ArchivedSkillRowView: View {
     let archived: ArchivedSkill
+    let restoreDisabled: Bool
     let onRestore: () -> Void
     let onReveal: () -> Void
 
@@ -293,6 +314,7 @@ private struct ArchivedSkillRowView: View {
 
             Button("恢复", action: onRestore)
                 .buttonStyle(.borderedProminent)
+                .disabled(restoreDisabled)
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)

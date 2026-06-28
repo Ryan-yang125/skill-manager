@@ -264,6 +264,64 @@ final class SkillManagerCoreTests: XCTestCase {
         XCTAssertTrue(store.archivedSkills().isEmpty)
     }
 
+    func testReleaseUpdateCheckerDetectsNewerRelease() throws {
+        let payload = """
+        {
+          "tag_name": "v0.1.2",
+          "name": "Skill Manager v0.1.2",
+          "html_url": "https://github.com/Ryan-yang125/skill-manager/releases/tag/v0.1.2"
+        }
+        """.data(using: .utf8)!
+
+        let result = try ReleaseUpdateChecker().decode(data: payload, currentVersion: "0.1.1")
+
+        XCTAssertEqual(result.latestVersion, "0.1.2")
+        XCTAssertTrue(result.isUpdateAvailable)
+        XCTAssertEqual(result.releaseURL.absoluteString, "https://github.com/Ryan-yang125/skill-manager/releases/tag/v0.1.2")
+    }
+
+    func testReleaseVersionComparisonHandlesVPREFIXAndPatchDigits() {
+        XCTAssertGreaterThan(ReleaseVersion("v0.1.10"), ReleaseVersion("0.1.2"))
+        XCTAssertEqual(ReleaseVersion("v0.1.2"), ReleaseVersion("0.1.2"))
+        XCTAssertLessThan(ReleaseVersion("0.1.1"), ReleaseVersion("v0.1.2"))
+    }
+
+    func testInventoryAuditReportCountsRootsAndReclaimableValues() throws {
+        let root = tempRoot.appendingPathComponent(".agents/skills", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+
+        let active = SkillRecord(
+            id: "unused",
+            name: "unused",
+            title: "Unused",
+            summary: "Unused helper.",
+            agent: .shared,
+            scope: .user,
+            path: root.appendingPathComponent("unused").path,
+            rootPath: root.path,
+            relativePath: "unused",
+            sizeBytes: 100,
+            tokenEstimate: 12,
+            lastUsedAt: nil,
+            usageCount: 0,
+            recommendation: .archive,
+            isArchived: false
+        )
+        let inventory = SkillInventory(active: [active], archived: [], scannedAt: Date(timeIntervalSince1970: 2_000_000))
+        let report = inventory.auditReport(
+            roots: [SkillRoot(url: root, agent: .shared, scope: .user)],
+            generatedAt: Date(timeIntervalSince1970: 2_000_001)
+        )
+
+        XCTAssertEqual(report.installedCount, 1)
+        XCTAssertEqual(report.unusedCount, 1)
+        XCTAssertEqual(report.suggestedArchiveCount, 1)
+        XCTAssertEqual(report.contextTokens, 12)
+        XCTAssertEqual(report.reclaimableBytes, 100)
+        XCTAssertEqual(report.roots.first?.skillCount, 1)
+        XCTAssertEqual(report.roots.first?.exists, true)
+    }
+
     private func makeSkill(path: String, markdown: String) throws -> URL {
         let folder = tempRoot.appendingPathComponent(path, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

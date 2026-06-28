@@ -11,7 +11,17 @@ let usage = analyzer.analyzeSkillUsage(skills: roughSkills)
 let afterUsage = Date()
 let skills = scanner.scan(roots: roots, usage: usage)
 let inventory = SkillInventory(active: skills, archived: ArchiveStore().archivedSkills(), scannedAt: Date())
+let audit = inventory.auditReport(roots: roots)
 let finishedAt = Date()
+
+if CommandLine.arguments.contains("--json") {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    encoder.dateEncodingStrategy = .iso8601
+    let data = try encoder.encode(audit)
+    print(String(data: data, encoding: .utf8) ?? "{}")
+    exit(0)
+}
 
 print("Skill Manager Local Scan")
 print("scannedAt=\(ISO8601DateFormatter().string(from: inventory.scannedAt))")
@@ -25,6 +35,12 @@ print("suggested=\(inventory.archiveCandidates.count)")
 print("archived=\(inventory.archived.count)")
 print("contextTokens=\(inventory.totalContextTokens)")
 print("reclaimableContextTokens=\(inventory.reclaimableContextTokens)")
+print("installedBytes=\(audit.installedBytes)")
+print("reclaimableBytes=\(audit.reclaimableBytes)")
+print("rootAudit=")
+for root in audit.roots {
+    print("- \(root.agent.rawValue) | exists=\(root.exists) | skills=\(root.skillCount) | \(root.path)")
+}
 
 for skill in inventory.active.prefix(8) {
     print("- \(skill.title) | \(skill.agent.rawValue) | \(SkillFormatting.contextTokens(skill.tokenEstimate)) | \(SkillFormatting.relativeDate(skill.lastUsedAt)) | \(skill.recommendation.rawValue)")

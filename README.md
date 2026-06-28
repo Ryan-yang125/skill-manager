@@ -36,6 +36,7 @@ Project-level skills are out of scope for the first release.
 - Archive and restore skills through a recoverable local archive.
 - Finder reveal for active and archived skills.
 - Menu bar status panel.
+- GitHub Release update check.
 
 ## How To Use
 
@@ -48,6 +49,8 @@ Project-level skills are out of scope for the first release.
 5. Use **Finder** to open the skill folder, or **Archive** to move a stale skill
    into the recoverable local archive.
 6. Open **Archived** when you need to restore a skill.
+7. Use **Check for Updates** to open the latest GitHub Release when a newer
+   build is available.
 
 ## What The App Counts
 
@@ -65,7 +68,7 @@ skills or session history.
 
 ## Install From GitHub Release
 
-1. Download `SkillManager-v0.1.1-macos.zip` from the
+1. Download `SkillManager-v0.1.2-macos.zip` from the
    [latest release](https://github.com/Ryan-yang125/skill-manager/releases/latest).
 2. Unzip it.
 3. Open `SkillManager.app`.
@@ -92,6 +95,7 @@ build/SkillManager.app
 
 ```bash
 swift run SkillManagerScan
+swift run SkillManagerScan --json
 script/build_and_run.sh --verify
 ```
 
