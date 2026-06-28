@@ -124,8 +124,12 @@ struct SidebarView: View {
             return "从未命中"
         case .suggested:
             return "可清理"
+        case .cleanupPlan:
+            return "先预览再清理"
         case .archived:
             return "可恢复"
+        case .history:
+            return "本机记录"
         }
     }
 

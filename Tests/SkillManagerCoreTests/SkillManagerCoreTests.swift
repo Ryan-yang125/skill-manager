@@ -264,6 +264,124 @@ final class SkillManagerCoreTests: XCTestCase {
         XCTAssertTrue(store.archivedSkills().isEmpty)
     }
 
+    func testOperationHistoryStorePersistsNewestFirst() throws {
+        let support = tempRoot.appendingPathComponent("Support", isDirectory: true)
+        let store = OperationHistoryStore(applicationSupportURL: support)
+
+        try store.append(SkillOperationEntry(
+            action: .archive,
+            skillName: "old-helper",
+            title: "Old Helper",
+            originalPath: "/tmp/old-helper",
+            archivePath: "/tmp/archive/old-helper",
+            createdAt: Date(timeIntervalSince1970: 100),
+            succeeded: true,
+            message: "Archived"
+        ))
+        try store.append(SkillOperationEntry(
+            action: .restore,
+            skillName: "old-helper",
+            title: "Old Helper",
+            originalPath: "/tmp/old-helper",
+            archivePath: "/tmp/archive/old-helper",
+            createdAt: Date(timeIntervalSince1970: 200),
+            succeeded: true,
+            message: "Restored"
+        ))
+
+        let entries = store.entries()
+        XCTAssertEqual(entries.count, 2)
+        XCTAssertEqual(entries.first?.action, .restore)
+        XCTAssertEqual(entries.last?.action, .archive)
+    }
+
+    func testInventoryServiceRecordsArchiveAndRestoreHistory() throws {
+        let skillURL = try makeSkill(
+            path: ".codex/skills/history-helper",
+            markdown: """
+            ---
+            name: history-helper
+            description: Helper with history.
+            ---
+            """
+        )
+        let record = makeRecord(
+            id: "history-helper",
+            name: "history-helper",
+            title: "History Helper",
+            summary: "Helper with history.",
+            agent: .codex,
+            path: skillURL,
+            rootPath: skillURL.deletingLastPathComponent()
+        )
+        let support = tempRoot.appendingPathComponent("Support", isDirectory: true)
+        let historyStore = OperationHistoryStore(applicationSupportURL: support)
+        let service = InventoryService(
+            scanner: SkillScanner(homeURL: tempRoot),
+            usageAnalyzer: UsageAnalyzer(homeURL: tempRoot),
+            archiveStore: ArchiveStore(applicationSupportURL: support),
+            historyStore: historyStore,
+            reportStore: CleanupReportStore(applicationSupportURL: support)
+        )
+
+        let archived = try service.archive(record)
+        try service.restore(archived)
+
+        let entries = historyStore.entries()
+        XCTAssertEqual(entries.count, 2)
+        XCTAssertTrue(entries.allSatisfy(\.succeeded))
+        XCTAssertTrue(entries.contains { $0.action == .archive && $0.skillName == "history-helper" })
+        XCTAssertTrue(entries.contains { $0.action == .restore && $0.skillName == "history-helper" })
+    }
+
+    func testCleanupReportStoreExportsMarkdownAndJSON() throws {
+        let skillURL = try makeSkill(
+            path: ".agents/skills/report-helper",
+            markdown: """
+            ---
+            name: report-helper
+            description: Helper for reports.
+            ---
+            """
+        )
+        let record = makeRecord(
+            id: "report-helper",
+            name: "report-helper",
+            title: "Report Helper",
+            summary: "Helper for reports.",
+            agent: .shared,
+            path: skillURL,
+            rootPath: skillURL.deletingLastPathComponent(),
+            tokenEstimate: 14,
+            sizeBytes: 120
+        )
+        let inventory = SkillInventory(
+            active: [record],
+            archived: [],
+            scannedAt: Date(timeIntervalSince1970: 2_000_000)
+        )
+        let store = CleanupReportStore(applicationSupportURL: tempRoot.appendingPathComponent("Support", isDirectory: true))
+
+        let export = try store.export(
+            inventory: inventory,
+            skills: [record],
+            now: Date(timeIntervalSince1970: 2_000_100)
+        )
+
+        XCTAssertTrue(FileManager.default.fileExists(atPath: export.markdownURL.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: export.jsonURL.path))
+        let markdown = try String(contentsOf: export.markdownURL, encoding: .utf8)
+        XCTAssertTrue(markdown.contains("# Skill Manager Cleanup Plan"))
+        XCTAssertTrue(markdown.contains("Report Helper"))
+        XCTAssertTrue(markdown.contains("14 tokens"))
+
+        let data = try Data(contentsOf: export.jsonURL)
+        let report = try JSONDecoder.skillManagerStore.decode(CleanupPlanReport.self, from: data)
+        XCTAssertEqual(report.selectedCount, 1)
+        XCTAssertEqual(report.selectedContextTokens, 14)
+        XCTAssertEqual(report.skills.first?.name, "report-helper")
+    }
+
     func testReleaseUpdateCheckerDetectsNewerRelease() throws {
         let payload = """
         {
@@ -327,5 +445,35 @@ final class SkillManagerCoreTests: XCTestCase {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try markdown.write(to: folder.appendingPathComponent("SKILL.md"), atomically: true, encoding: .utf8)
         return folder
+    }
+
+    private func makeRecord(
+        id: String,
+        name: String,
+        title: String,
+        summary: String,
+        agent: SkillAgent,
+        path: URL,
+        rootPath: URL,
+        tokenEstimate: Int = 12,
+        sizeBytes: Int64 = 20
+    ) -> SkillRecord {
+        SkillRecord(
+            id: id,
+            name: name,
+            title: title,
+            summary: summary,
+            agent: agent,
+            scope: .user,
+            path: path.path,
+            rootPath: rootPath.path,
+            relativePath: path.lastPathComponent,
+            sizeBytes: sizeBytes,
+            tokenEstimate: tokenEstimate,
+            lastUsedAt: nil,
+            usageCount: 0,
+            recommendation: .archive,
+            isArchived: false
+        )
     }
 }

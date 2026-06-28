@@ -10,7 +10,11 @@ struct MainContentView: View {
 
             Divider()
 
-            if model.showingArchived {
+            if model.showingHistory {
+                historyContent
+            } else if model.showingCleanupPlan {
+                cleanupPlanContent
+            } else if model.showingArchived {
                 archivedContent
             } else {
                 skillsContent
@@ -53,34 +57,36 @@ struct MainContentView: View {
                 }
             }
 
-            HStack(spacing: 12) {
-                TextField("搜索 name / description", text: $model.searchText)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(minWidth: 220, idealWidth: 280, maxWidth: 360)
+            if !model.showingHistory {
+                HStack(spacing: 12) {
+                    TextField("搜索 name / description", text: $model.searchText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minWidth: 220, idealWidth: 280, maxWidth: 360)
 
-                Picker("排序", selection: $model.sortOption) {
-                    ForEach(AppModel.SortOption.allCases) { option in
-                        Text(option.rawValue).tag(option)
+                    Picker("排序", selection: $model.sortOption) {
+                        ForEach(AppModel.SortOption.allCases) { option in
+                            Text(option.rawValue).tag(option)
+                        }
                     }
-                }
-                .labelsHidden()
-                .frame(width: 150)
+                    .labelsHidden()
+                    .frame(width: 150)
 
-                Spacer()
+                    Spacer()
 
-                Text(model.updateStatusText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                    Text(model.updateStatusText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
 
-                Button(model.updateActionTitle) {
-                    if case .available = model.updateCheckState {
-                        model.openUpdateRelease()
-                    } else {
-                        model.checkForUpdates()
+                    Button(model.updateActionTitle) {
+                        if case .available = model.updateCheckState {
+                            model.openUpdateRelease()
+                        } else {
+                            model.checkForUpdates()
+                        }
                     }
+                    .disabled(model.updateCheckState == .checking)
                 }
-                .disabled(model.updateCheckState == .checking)
             }
         }
         .padding(.horizontal, 24)
@@ -115,6 +121,45 @@ struct MainContentView: View {
         }
     }
 
+    private var cleanupPlanContent: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                CleanupPlanSummaryView(
+                    selectedCount: model.cleanupSelectedCount,
+                    candidateCount: model.cleanupCandidates.count,
+                    contextTokens: model.cleanupSelectedContextTokens,
+                    diskBytes: model.cleanupSelectedBytes,
+                    latestReportPath: model.latestCleanupReportPath,
+                    archiveDisabled: model.isArchiving || model.cleanupSelectedCount == 0,
+                    onSelectAll: { model.selectAllCleanupCandidates() },
+                    onClear: { model.clearCleanupSelection() },
+                    onExport: { model.exportCleanupPlanReport() },
+                    onRevealReport: { model.revealLatestCleanupReport() },
+                    onArchive: { model.requestArchiveCleanupPlan() }
+                )
+
+                if model.filteredSkills.isEmpty {
+                    EmptyStateView(
+                        title: model.isScanning ? "正在生成清理计划" : "没有可清理项",
+                        subtitle: model.isScanning ? "读取本机 Skill 和会话记录" : "当前没有命中建议归档的 Skill"
+                    )
+                    .frame(maxWidth: .infinity, minHeight: 300)
+                } else {
+                    ForEach(model.filteredSkills) { skill in
+                        CleanupPlanRowView(
+                            skill: skill,
+                            familyTitle: familyTitle(for: skill),
+                            isSelected: model.isCleanupSelected(skill),
+                            onSelectedChange: { model.setCleanupSelected($0, for: skill) },
+                            onReveal: { model.reveal(skill) }
+                        )
+                    }
+                }
+            }
+            .padding(24)
+        }
+    }
+
     private var archivedContent: some View {
         ScrollView {
             LazyVStack(spacing: 10) {
@@ -129,6 +174,22 @@ struct MainContentView: View {
                             onRestore: { model.restore(archived) },
                             onReveal: { model.reveal(archived) }
                         )
+                    }
+                }
+            }
+            .padding(24)
+        }
+    }
+
+    private var historyContent: some View {
+        ScrollView {
+            LazyVStack(spacing: 10) {
+                if model.operationHistory.isEmpty {
+                    EmptyStateView(title: "暂无操作历史", subtitle: "归档和恢复记录会保存在本机")
+                        .frame(maxWidth: .infinity, minHeight: 360)
+                } else {
+                    ForEach(model.operationHistory) { entry in
+                        OperationHistoryRowView(entry: entry)
                     }
                 }
             }
@@ -278,6 +339,180 @@ private struct SkillRowView: View {
     }
 }
 
+private struct CleanupPlanSummaryView: View {
+    let selectedCount: Int
+    let candidateCount: Int
+    let contextTokens: Int
+    let diskBytes: Int64
+    let latestReportPath: String?
+    let archiveDisabled: Bool
+    let onSelectAll: () -> Void
+    let onClear: () -> Void
+    let onExport: () -> Void
+    let onRevealReport: () -> Void
+    let onArchive: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 16) {
+                Image(systemName: "checklist")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 38, height: 38)
+                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 9))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("先确认，再归档")
+                        .font(.system(size: 17, weight: .semibold))
+
+                    Text("\(selectedCount) / \(candidateCount) selected · \(SkillFormatting.contextTokens(contextTokens)) · \(SkillFormatting.bytes(diskBytes))")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 12)
+
+                HStack(spacing: 8) {
+                    Button("全选", action: onSelectAll)
+                    Button("清空", action: onClear)
+                    Button("导出报告", action: onExport)
+                        .disabled(selectedCount == 0)
+                    Button("归档选中", action: onArchive)
+                        .buttonStyle(.borderedProminent)
+                        .disabled(archiveDisabled)
+                }
+            }
+
+            if let latestReportPath {
+                HStack(spacing: 8) {
+                    Image(systemName: "doc.text")
+                        .foregroundStyle(.secondary)
+                    Text(latestReportPath)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Button("查看报告", action: onRevealReport)
+                        .buttonStyle(.borderless)
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        }
+    }
+}
+
+private struct CleanupPlanRowView: View {
+    let skill: SkillRecord
+    let familyTitle: String?
+    let isSelected: Bool
+    let onSelectedChange: (Bool) -> Void
+    let onReveal: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Toggle("", isOn: Binding(
+                get: { isSelected },
+                set: { onSelectedChange($0) }
+            ))
+            .labelsHidden()
+            .toggleStyle(.checkbox)
+            .padding(.top, 5)
+
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(iconColor)
+                .frame(width: 28, height: 28)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 7))
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(skill.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .lineLimit(1)
+
+                Text(skill.name)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Text(skill.summary)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack(spacing: 8) {
+                    Tag(text: tagText)
+                    if let familyTitle {
+                        Tag(text: familyTitle)
+                    }
+                }
+            }
+
+            Spacer(minLength: 12)
+
+            VStack(alignment: .trailing, spacing: 8) {
+                Button("Finder", action: onReveal)
+                    .buttonStyle(.borderless)
+
+                HStack(spacing: 14) {
+                    Metric(label: "上次", value: SkillFormatting.relativeDate(skill.lastUsedAt))
+                    Metric(label: "使用", value: "\(skill.usageCount)")
+                    Metric(label: "上下文", value: SkillFormatting.contextTokens(skill.tokenEstimate))
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(isSelected ? Color.accentColor.opacity(0.65) : Color.primary.opacity(0.08), lineWidth: isSelected ? 2 : 1)
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 10))
+        .onTapGesture {
+            onSelectedChange(!isSelected)
+        }
+    }
+
+    private var icon: String {
+        switch skill.agent {
+        case .shared: return "shippingbox"
+        case .codex: return "curlybraces"
+        case .claude: return "sparkle"
+        case .gemini: return "diamond"
+        case .unknown: return "questionmark.circle"
+        }
+    }
+
+    private var iconColor: Color {
+        switch skill.agent {
+        case .shared: return .teal
+        case .codex: return .blue
+        case .claude: return .purple
+        case .gemini: return .orange
+        case .unknown: return .secondary
+        }
+    }
+
+    private var tagText: String {
+        switch skill.agent {
+        case .shared: return "Shared"
+        case .codex: return "Codex"
+        case .claude: return "Claude"
+        case .gemini: return "Gemini"
+        case .unknown: return "Local"
+        }
+    }
+}
+
 private struct ArchivedSkillRowView: View {
     let archived: ArchivedSkill
     let restoreDisabled: Bool
@@ -322,6 +557,91 @@ private struct ArchivedSkillRowView: View {
         .overlay {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        }
+    }
+}
+
+private struct OperationHistoryRowView: View {
+    let entry: SkillOperationEntry
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(color)
+                .frame(width: 28, height: 28)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 7))
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 8) {
+                    Text("\(actionTitle) · \(entry.title)")
+                        .font(.system(size: 15, weight: .semibold))
+                        .lineLimit(1)
+
+                    Tag(text: entry.succeeded ? "成功" : "失败")
+                }
+
+                Text(entry.skillName)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Text(entry.message)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Text(pathText)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+
+            Spacer(minLength: 12)
+
+            Text(SkillFormatting.relativeDate(entry.createdAt))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 58, alignment: .trailing)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        }
+    }
+
+    private var actionTitle: String {
+        switch entry.action {
+        case .archive: return "归档"
+        case .restore: return "恢复"
+        }
+    }
+
+    private var icon: String {
+        switch entry.action {
+        case .archive: return "archivebox"
+        case .restore: return "arrow.uturn.backward"
+        }
+    }
+
+    private var color: Color {
+        guard entry.succeeded else { return .red }
+        switch entry.action {
+        case .archive: return .orange
+        case .restore: return .green
+        }
+    }
+
+    private var pathText: String {
+        switch entry.action {
+        case .archive:
+            return entry.archivePath ?? entry.originalPath
+        case .restore:
+            return entry.originalPath
         }
     }
 }

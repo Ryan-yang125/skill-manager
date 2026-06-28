@@ -9,7 +9,9 @@ final class AppModel: ObservableObject {
         case all = "全部 Skills"
         case unused = "未使用"
         case suggested = "建议归档"
+        case cleanupPlan = "清理计划"
         case archived = "已归档"
+        case history = "操作历史"
 
         var id: String { rawValue }
 
@@ -18,7 +20,9 @@ final class AppModel: ObservableObject {
             case .all: return "doc.text"
             case .unused: return "circle.slash"
             case .suggested: return "archivebox"
+            case .cleanupPlan: return "checklist"
             case .archived: return "tray.full"
+            case .history: return "clock.arrow.circlepath"
             }
         }
     }
@@ -71,7 +75,11 @@ final class AppModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var pendingArchiveSkill: SkillRecord?
     @Published var confirmingArchiveSuggested = false
+    @Published var confirmingArchiveCleanupPlan = false
     @Published var auditReport: InventoryAuditReport?
+    @Published var operationHistory: [SkillOperationEntry] = []
+    @Published var selectedCleanupSkillIDs: Set<String> = []
+    @Published var latestCleanupReportPath: String?
     @Published var updateCheckState: UpdateCheckState = .idle
     @Published var isArchiving = false
 
@@ -89,6 +97,26 @@ final class AppModel: ObservableObject {
 
     var archiveCandidatesCount: Int {
         inventory.archiveCandidates.count
+    }
+
+    var cleanupCandidates: [SkillRecord] {
+        sortedSkills(inventory.archiveCandidates)
+    }
+
+    var selectedCleanupSkills: [SkillRecord] {
+        cleanupCandidates.filter { selectedCleanupSkillIDs.contains($0.id) }
+    }
+
+    var cleanupSelectedCount: Int {
+        selectedCleanupSkills.count
+    }
+
+    var cleanupSelectedContextTokens: Int {
+        selectedCleanupSkills.reduce(0) { $0 + $1.tokenEstimate }
+    }
+
+    var cleanupSelectedBytes: Int64 {
+        selectedCleanupSkills.reduce(0) { $0 + $1.sizeBytes }
     }
 
     var currentVersion: String {
@@ -168,8 +196,12 @@ final class AppModel: ObservableObject {
             return "\(inventory.unused.count) unused · \(SkillFormatting.tokens(inventory.unused.reduce(0) { $0 + $1.tokenEstimate })) context tokens"
         case .section(.suggested):
             return "\(archiveCandidatesCount) suggested · \(SkillFormatting.tokens(inventory.reclaimableContextTokens)) context tokens"
+        case .section(.cleanupPlan):
+            return "\(cleanupSelectedCount) selected · \(SkillFormatting.tokens(cleanupSelectedContextTokens)) context tokens"
         case .section(.archived):
             return "\(inventory.archived.count) archived"
+        case .section(.history):
+            return "\(operationHistory.count) local operations"
         case .agent(let agent):
             let skills = inventory.active.filter { $0.agent == agent }
             return "\(skills.count) skills · \(SkillFormatting.tokens(skills.reduce(0) { $0 + $1.tokenEstimate })) context tokens"
@@ -183,12 +215,22 @@ final class AppModel: ObservableObject {
         selectedFilter == .section(.archived)
     }
 
+    var showingCleanupPlan: Bool {
+        selectedFilter == .section(.cleanupPlan)
+    }
+
+    var showingHistory: Bool {
+        selectedFilter == .section(.history)
+    }
+
     func count(for section: Section) -> Int {
         switch section {
         case .all: return inventory.active.count
         case .unused: return inventory.unused.count
         case .suggested: return inventory.archiveCandidates.count
+        case .cleanupPlan: return inventory.archiveCandidates.count
         case .archived: return inventory.archived.count
+        case .history: return operationHistory.count
         }
     }
 
@@ -249,6 +291,8 @@ final class AppModel: ObservableObject {
 
             inventory = result
             auditReport = service.auditReport(for: result)
+            operationHistory = service.operationHistory()
+            selectedCleanupSkillIDs = Set(result.archiveCandidates.map { $0.id })
             selectedSkillID = filteredSkills.first?.id
             statusMessage = statusAfterScan ?? "上次扫描 \(SkillFormatting.relativeDate(result.scannedAt))"
             isScanning = false
@@ -266,6 +310,7 @@ final class AppModel: ObservableObject {
                     try service.archive(skill)
                 }.value
                 isArchiving = false
+                operationHistory = service.operationHistory()
                 reload(statusAfterScan: "已归档 \(skill.title)，可在“已归档”恢复")
             } catch {
                 isArchiving = false
@@ -304,12 +349,107 @@ final class AppModel: ObservableObject {
             if !result.1.isEmpty {
                 errorMessage = result.1.prefix(3).joined(separator: "\n")
             }
+            operationHistory = service.operationHistory()
             reload(statusAfterScan: "已归档 \(result.0) 个建议项")
         }
     }
 
     func requestArchiveSuggested() {
         confirmingArchiveSuggested = true
+    }
+
+    func isCleanupSelected(_ skill: SkillRecord) -> Bool {
+        selectedCleanupSkillIDs.contains(skill.id)
+    }
+
+    func setCleanupSelected(_ selected: Bool, for skill: SkillRecord) {
+        if selected {
+            selectedCleanupSkillIDs.insert(skill.id)
+        } else {
+            selectedCleanupSkillIDs.remove(skill.id)
+        }
+    }
+
+    func selectAllCleanupCandidates() {
+        selectedCleanupSkillIDs = Set(cleanupCandidates.map { $0.id })
+    }
+
+    func clearCleanupSelection() {
+        selectedCleanupSkillIDs.removeAll()
+    }
+
+    func requestArchiveCleanupPlan() {
+        confirmingArchiveCleanupPlan = true
+    }
+
+    func exportCleanupPlanReport() {
+        let selected = selectedCleanupSkills
+        guard !selected.isEmpty else {
+            statusMessage = "没有选中的清理项"
+            return
+        }
+
+        do {
+            let export = try service.exportCleanupReport(inventory: inventory, skills: selected)
+            latestCleanupReportPath = export.markdownURL.path
+            statusMessage = "已导出清理报告"
+            NSWorkspace.shared.activateFileViewerSelecting([export.markdownURL])
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func revealLatestCleanupReport() {
+        guard let latestCleanupReportPath else { return }
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: latestCleanupReportPath)])
+    }
+
+    func archiveSelectedCleanupPlan() {
+        let selected = selectedCleanupSkills
+        guard !selected.isEmpty else {
+            statusMessage = "没有选中的清理项"
+            return
+        }
+        guard !isArchiving else { return }
+        isArchiving = true
+        statusMessage = "正在执行清理计划"
+
+        Task {
+            let service = self.service
+            let inventory = self.inventory
+            let result = await Task.detached(priority: .userInitiated) {
+                var report: CleanupReportExport?
+                var archivedCount = 0
+                var failures: [String] = []
+
+                do {
+                    report = try service.exportCleanupReport(inventory: inventory, skills: selected)
+                } catch {
+                    failures.append("导出报告：\(error.localizedDescription)")
+                    return (report, archivedCount, failures)
+                }
+
+                for skill in selected {
+                    do {
+                        _ = try service.archive(skill)
+                        archivedCount += 1
+                    } catch {
+                        failures.append("\(skill.title)：\(error.localizedDescription)")
+                    }
+                }
+                return (report, archivedCount, failures)
+            }.value
+
+            isArchiving = false
+            if let report = result.0 {
+                latestCleanupReportPath = report.markdownURL.path
+            }
+            if !result.2.isEmpty {
+                errorMessage = result.2.prefix(3).joined(separator: "\n")
+            }
+            operationHistory = service.operationHistory()
+            reload(statusAfterScan: "已归档 \(result.1) 个清理计划项")
+        }
     }
 
     func restore(_ archived: ArchivedSkill) {
@@ -323,6 +463,7 @@ final class AppModel: ObservableObject {
                     try service.restore(archived)
                 }.value
                 isArchiving = false
+                operationHistory = service.operationHistory()
                 reload(statusAfterScan: "已恢复 \(archived.title)")
             } catch {
                 isArchiving = false
@@ -379,7 +520,11 @@ final class AppModel: ObservableObject {
             return inventory.active.filter { $0.usageCount == 0 }
         case .section(.suggested):
             return inventory.archiveCandidates
+        case .section(.cleanupPlan):
+            return cleanupCandidates
         case .section(.archived):
+            return []
+        case .section(.history):
             return []
         case .agent(let agent):
             return inventory.active.filter { $0.agent == agent }

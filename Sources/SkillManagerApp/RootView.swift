@@ -42,5 +42,14 @@ struct RootView: View {
         } message: {
             Text("会把当前建议归档的 Skill 移到可恢复归档目录。")
         }
+        .alert("执行清理计划？", isPresented: $model.confirmingArchiveCleanupPlan) {
+            Button("取消", role: .cancel) {}
+            Button("导出报告并归档 \(model.cleanupSelectedCount) 个", role: .destructive) {
+                model.archiveSelectedCleanupPlan()
+            }
+            .disabled(model.cleanupSelectedCount == 0)
+        } message: {
+            Text("会先导出 Markdown 和 JSON 报告，再把选中的 Skill 移到可恢复归档目录。")
+        }
     }
 }

@@ -22,7 +22,7 @@ public final class ArchiveStore: @unchecked Sendable {
 
     public func archivedSkills() -> [ArchivedSkill] {
         guard let data = try? Data(contentsOf: manifestURL),
-              let skills = try? JSONDecoder.skillManager.decode([ArchivedSkill].self, from: data) else {
+              let skills = try? JSONDecoder.skillManagerStore.decode([ArchivedSkill].self, from: data) else {
             return []
         }
         return skills.sorted { $0.archivedAt > $1.archivedAt }
@@ -92,7 +92,7 @@ public final class ArchiveStore: @unchecked Sendable {
 
     private func saveManifest(_ skills: [ArchivedSkill]) throws {
         try ensureSupportDirectories()
-        let data = try JSONEncoder.skillManager.encode(skills.sorted { $0.archivedAt > $1.archivedAt })
+        let data = try JSONEncoder.skillManagerStore.encode(skills.sorted { $0.archivedAt > $1.archivedAt })
         try data.write(to: manifestURL, options: [.atomic])
     }
 
@@ -124,23 +124,6 @@ public enum ArchiveError: LocalizedError, Equatable {
         case .restoreDestinationExists(let path):
             return "恢复位置已存在：\(path)"
         }
-    }
-}
-
-private extension JSONEncoder {
-    static var skillManager: JSONEncoder {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        return encoder
-    }
-}
-
-private extension JSONDecoder {
-    static var skillManager: JSONDecoder {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return decoder
     }
 }
 
