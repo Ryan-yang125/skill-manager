@@ -48,6 +48,12 @@ struct MainContentView: View {
                 }
                 .disabled(model.isScanning || model.isArchiving)
 
+                Button {
+                    model.isInspectorPresented.toggle()
+                } label: {
+                    Label("详情", systemImage: model.isInspectorPresented ? "sidebar.right" : "sidebar.trailing")
+                }
+
                 if model.selectedFilter == .section(.suggested), model.archiveCandidatesCount > 0 {
                     Button("全部归档") {
                         model.requestArchiveSuggested()
@@ -108,11 +114,15 @@ struct MainContentView: View {
                         SkillRowView(
                             skill: skill,
                             familyTitle: familyTitle(for: skill),
+                            decision: model.decision(for: skill),
                             isSelected: model.selectedSkillID == skill.id,
                             archiveDisabled: model.isArchiving,
                             onSelect: { model.selectedSkillID = skill.id },
                             onArchive: { model.requestArchive(skill) },
-                            onReveal: { model.reveal(skill) }
+                            onReveal: { model.reveal(skill) },
+                            onProtect: { model.setProtected(skill) },
+                            onReview: { model.setNeedsReview(skill) },
+                            onClearDecision: { model.clearDecision(for: skill) }
                         )
                     }
                 }
@@ -220,11 +230,15 @@ struct MainContentView: View {
 private struct SkillRowView: View {
     let skill: SkillRecord
     let familyTitle: String?
+    let decision: SkillUserDecision?
     let isSelected: Bool
     let archiveDisabled: Bool
     let onSelect: () -> Void
     let onArchive: () -> Void
     let onReveal: () -> Void
+    let onProtect: () -> Void
+    let onReview: () -> Void
+    let onClearDecision: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -260,7 +274,18 @@ private struct SkillRowView: View {
                         Button("Finder", action: onReveal)
                             .buttonStyle(.borderless)
 
-                        if skill.recommendation == .archive || skill.recommendation == .review {
+                        Menu("标记") {
+                            Button("保护", action: onProtect)
+                                .disabled(decision == .protected)
+                            Button("待复查", action: onReview)
+                                .disabled(decision == .review)
+                            if decision != nil {
+                                Divider()
+                                Button("清除标记", action: onClearDecision)
+                            }
+                        }
+
+                        if decision != .protected && (skill.recommendation == .archive || skill.recommendation == .review) {
                             Button("归档", action: onArchive)
                                 .buttonStyle(.bordered)
                                 .disabled(archiveDisabled)
@@ -278,6 +303,10 @@ private struct SkillRowView: View {
 
                 if let familyTitle {
                     Tag(text: familyTitle)
+                }
+
+                if let decision {
+                    Tag(text: decision.title)
                 }
 
                 Spacer(minLength: 12)
@@ -298,9 +327,16 @@ private struct SkillRowView: View {
         .onTapGesture(perform: onSelect)
         .contextMenu {
             Button("在 Finder 显示", action: onReveal)
+            Button("保护", action: onProtect)
+                .disabled(decision == .protected)
+            Button("待复查", action: onReview)
+                .disabled(decision == .review)
+            if decision != nil {
+                Button("清除标记", action: onClearDecision)
+            }
             if skill.recommendation == .archive || skill.recommendation == .review {
                 Button("归档", action: onArchive)
-                    .disabled(archiveDisabled)
+                    .disabled(archiveDisabled || decision == .protected)
             }
         }
     }

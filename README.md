@@ -34,6 +34,9 @@ Project-level skills are out of scope for the first release.
 - Sort by recent use, usage count, context tokens, or name.
 - Filter by all, unused, suggested archive, archived, agent, and collection.
 - Cleanup Plan view with selectable archive candidates.
+- Protect important skills so cleanup suggestions and batch archive skip them.
+- Mark uncertain skills for review and inspect them in a dedicated review queue.
+- Detail inspector with path, usage, context cost, source, and quick actions.
 - Markdown and JSON cleanup reports before batch archive.
 - Cleanup completion summary with report and report-folder shortcuts.
 - Local operation history for archive and restore actions.
@@ -52,12 +55,14 @@ Project-level skills are out of scope for the first release.
 4. Search by skill name or description when you want to inspect a specific tool.
 5. Use **Finder** to open the skill folder, or **Archive** to move a stale skill
    into the recoverable local archive.
-6. Open **Cleanup Plan** to select the suggested cleanup set, export a report,
+6. Use **Protect** for skills that should never be included in cleanup, or
+   **Review** for skills you want to inspect later.
+7. Open **Cleanup Plan** to select the suggested cleanup set, export a report,
    and batch archive the selected skills. After cleanup, the app opens
    **History** and shows the saved report location.
-7. Open **History** to review local archive and restore operations.
-8. Open **Archived** when you need to restore a skill.
-9. Use **Check for Updates** to open the latest GitHub Release when a newer
+8. Open **History** to review local archive and restore operations.
+9. Open **Archived** when you need to restore a skill.
+10. Use **Check for Updates** to open the latest GitHub Release when a newer
    build is available.
 
 ## What The App Counts
@@ -82,6 +87,9 @@ skills or session history.
 - **Batch cleanup exports first**: Cleanup Plan writes both Markdown and JSON
   reports into `~/Library/Application Support/SkillManager/Reports` before
   moving selected skills.
+- **Protected and review skills are skipped**: local decisions live in
+  `~/Library/Application Support/SkillManager/skill-decisions.json`; protected
+  and review skills are excluded from Cleanup Plan.
 - **Restore checks destination**: restore moves the archived folder back to its
   original path and fails if that destination already exists.
 - **Operation history is local**: archive and restore attempts are recorded in
@@ -91,7 +99,7 @@ skills or session history.
 
 ## Install From GitHub Release
 
-1. Download `SkillManager-v0.1.4-macos.zip` from the
+1. Download `SkillManager-v0.2.0-macos.zip` from the
    [latest release](https://github.com/Ryan-yang125/skill-manager/releases/latest).
 2. Unzip it.
 3. Open `SkillManager.app`.

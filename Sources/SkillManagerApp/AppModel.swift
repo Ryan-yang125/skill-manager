@@ -9,6 +9,8 @@ final class AppModel: ObservableObject {
         case all = "全部 Skills"
         case unused = "未使用"
         case suggested = "建议归档"
+        case review = "待复查"
+        case protected = "已保护"
         case cleanupPlan = "清理计划"
         case archived = "已归档"
         case history = "操作历史"
@@ -20,6 +22,8 @@ final class AppModel: ObservableObject {
             case .all: return "doc.text"
             case .unused: return "circle.slash"
             case .suggested: return "archivebox"
+            case .review: return "exclamationmark.circle"
+            case .protected: return "shield"
             case .cleanupPlan: return "checklist"
             case .archived: return "tray.full"
             case .history: return "clock.arrow.circlepath"
@@ -76,6 +80,7 @@ final class AppModel: ObservableObject {
     @Published var selectedSkillID: String?
     @Published var searchText = ""
     @Published var sortOption: SortOption = .recent
+    @Published var isInspectorPresented = true
     @Published var isScanning = false
     @Published var statusMessage = "准备扫描"
     @Published var errorMessage: String?
@@ -84,6 +89,7 @@ final class AppModel: ObservableObject {
     @Published var confirmingArchiveCleanupPlan = false
     @Published var auditReport: InventoryAuditReport?
     @Published var operationHistory: [SkillOperationEntry] = []
+    @Published var skillDecisions: [String: SkillDecisionRecord] = [:]
     @Published var selectedCleanupSkillIDs: Set<String> = []
     @Published var latestCleanupReportPath: String?
     @Published var latestCleanupReportJSONPath: String?
@@ -104,11 +110,26 @@ final class AppModel: ObservableObject {
     }
 
     var archiveCandidatesCount: Int {
-        inventory.archiveCandidates.count
+        suggestedArchiveSkills.count
+    }
+
+    var suggestedArchiveSkills: [SkillRecord] {
+        sortedSkills(inventory.archiveCandidates.filter { decision(for: $0) == nil })
+    }
+
+    var protectedSkills: [SkillRecord] {
+        sortedSkills(inventory.active.filter { decision(for: $0) == .protected })
+    }
+
+    var reviewSkills: [SkillRecord] {
+        sortedSkills(inventory.active.filter { skill in
+            if decision(for: skill) == .protected { return false }
+            return decision(for: skill) == .review || skill.recommendation == .review
+        })
     }
 
     var cleanupCandidates: [SkillRecord] {
-        sortedSkills(inventory.archiveCandidates)
+        suggestedArchiveSkills
     }
 
     var selectedCleanupSkills: [SkillRecord] {
@@ -207,7 +228,11 @@ final class AppModel: ObservableObject {
         case .section(.unused):
             return "\(inventory.unused.count) unused · \(SkillFormatting.tokens(inventory.unused.reduce(0) { $0 + $1.tokenEstimate })) context tokens"
         case .section(.suggested):
-            return "\(archiveCandidatesCount) suggested · \(SkillFormatting.tokens(inventory.reclaimableContextTokens)) context tokens"
+            return "\(archiveCandidatesCount) suggested · \(SkillFormatting.tokens(suggestedArchiveSkills.reduce(0) { $0 + $1.tokenEstimate })) context tokens"
+        case .section(.review):
+            return "\(reviewSkills.count) to review · \(SkillFormatting.tokens(reviewSkills.reduce(0) { $0 + $1.tokenEstimate })) context tokens"
+        case .section(.protected):
+            return "\(protectedSkills.count) protected · excluded from cleanup"
         case .section(.cleanupPlan):
             return "\(cleanupSelectedCount) selected · \(SkillFormatting.tokens(cleanupSelectedContextTokens)) context tokens"
         case .section(.archived):
@@ -239,8 +264,10 @@ final class AppModel: ObservableObject {
         switch section {
         case .all: return inventory.active.count
         case .unused: return inventory.unused.count
-        case .suggested: return inventory.archiveCandidates.count
-        case .cleanupPlan: return inventory.archiveCandidates.count
+        case .suggested: return suggestedArchiveSkills.count
+        case .review: return reviewSkills.count
+        case .protected: return protectedSkills.count
+        case .cleanupPlan: return cleanupCandidates.count
         case .archived: return inventory.archived.count
         case .history: return operationHistory.count
         }
@@ -304,7 +331,8 @@ final class AppModel: ObservableObject {
             inventory = result
             auditReport = service.auditReport(for: result)
             operationHistory = service.operationHistory()
-            selectedCleanupSkillIDs = Set(result.archiveCandidates.map { $0.id })
+            skillDecisions = service.skillDecisions()
+            selectedCleanupSkillIDs = Set(cleanupCandidates.map { $0.id })
             selectedSkillID = filteredSkills.first?.id
             statusMessage = statusAfterScan ?? "上次扫描 \(SkillFormatting.relativeDate(result.scannedAt))"
             isScanning = false
@@ -312,6 +340,10 @@ final class AppModel: ObservableObject {
     }
 
     func archive(_ skill: SkillRecord) {
+        guard decision(for: skill) != .protected else {
+            statusMessage = "\(skill.title) 已保护，取消保护后才能归档"
+            return
+        }
         guard !isArchiving else { return }
         isArchiving = true
         statusMessage = "正在归档 \(skill.title)"
@@ -336,7 +368,7 @@ final class AppModel: ObservableObject {
     }
 
     func archiveSuggested() {
-        let candidates = inventory.archiveCandidates
+        let candidates = suggestedArchiveSkills
         guard !candidates.isEmpty else { return }
         guard !isArchiving else { return }
         isArchiving = true
@@ -368,6 +400,22 @@ final class AppModel: ObservableObject {
 
     func requestArchiveSuggested() {
         confirmingArchiveSuggested = true
+    }
+
+    func decision(for skill: SkillRecord) -> SkillUserDecision? {
+        skillDecisions[skill.id]?.decision
+    }
+
+    func setProtected(_ skill: SkillRecord) {
+        setDecision(.protected, for: skill)
+    }
+
+    func setNeedsReview(_ skill: SkillRecord) {
+        setDecision(.review, for: skill)
+    }
+
+    func clearDecision(for skill: SkillRecord) {
+        setDecision(nil, for: skill)
     }
 
     func isCleanupSelected(_ skill: SkillRecord) -> Bool {
@@ -560,7 +608,11 @@ final class AppModel: ObservableObject {
         case .section(.unused):
             return inventory.active.filter { $0.usageCount == 0 }
         case .section(.suggested):
-            return inventory.archiveCandidates
+            return suggestedArchiveSkills
+        case .section(.review):
+            return reviewSkills
+        case .section(.protected):
+            return protectedSkills
         case .section(.cleanupPlan):
             return cleanupCandidates
         case .section(.archived):
@@ -605,6 +657,28 @@ final class AppModel: ObservableObject {
             case .name:
                 return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
             }
+        }
+    }
+
+    private func setDecision(_ decision: SkillUserDecision?, for skill: SkillRecord) {
+        do {
+            try service.setDecision(decision, for: skill)
+            skillDecisions = service.skillDecisions()
+            let cleanupIDs = Set(cleanupCandidates.map { $0.id })
+            selectedCleanupSkillIDs.formIntersection(cleanupIDs)
+            if let selectedSkillID, !filteredSkills.contains(where: { $0.id == selectedSkillID }) {
+                self.selectedSkillID = filteredSkills.first?.id
+            }
+            switch decision {
+            case .protected:
+                statusMessage = "已保护 \(skill.title)"
+            case .review:
+                statusMessage = "已标记待复查 \(skill.title)"
+            case nil:
+                statusMessage = "已清除标记 \(skill.title)"
+            }
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 

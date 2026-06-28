@@ -10,6 +10,10 @@ struct RootView: View {
                 .navigationSplitViewColumnWidth(min: 220, ideal: 260, max: 320)
         } detail: {
             MainContentView()
+                .inspector(isPresented: $model.isInspectorPresented) {
+                    SkillInspectorView()
+                        .environmentObject(model)
+                }
         }
         .navigationSplitViewStyle(.balanced)
         .alert("操作失败", isPresented: Binding(

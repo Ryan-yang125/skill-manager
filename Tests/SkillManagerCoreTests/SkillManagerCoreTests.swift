@@ -295,6 +295,23 @@ final class SkillManagerCoreTests: XCTestCase {
         XCTAssertEqual(entries.last?.action, .archive)
     }
 
+    func testSkillDecisionStorePersistsAndClearsDecisions() throws {
+        let support = tempRoot.appendingPathComponent("Support", isDirectory: true)
+        let store = SkillDecisionStore(applicationSupportURL: support)
+
+        try store.setDecision(.protected, for: "skill-one", now: Date(timeIntervalSince1970: 100))
+        XCTAssertEqual(store.decision(for: "skill-one"), .protected)
+
+        let reloaded = SkillDecisionStore(applicationSupportURL: support)
+        XCTAssertEqual(reloaded.decisions()["skill-one"]?.decision, .protected)
+
+        try reloaded.setDecision(.review, for: "skill-one", now: Date(timeIntervalSince1970: 200))
+        XCTAssertEqual(reloaded.decision(for: "skill-one"), .review)
+
+        try reloaded.setDecision(nil, for: "skill-one")
+        XCTAssertTrue(reloaded.decisions().isEmpty)
+    }
+
     func testInventoryServiceRecordsArchiveAndRestoreHistory() throws {
         let skillURL = try makeSkill(
             path: ".codex/skills/history-helper",
@@ -321,7 +338,8 @@ final class SkillManagerCoreTests: XCTestCase {
             usageAnalyzer: UsageAnalyzer(homeURL: tempRoot),
             archiveStore: ArchiveStore(applicationSupportURL: support),
             historyStore: historyStore,
-            reportStore: CleanupReportStore(applicationSupportURL: support)
+            reportStore: CleanupReportStore(applicationSupportURL: support),
+            decisionStore: SkillDecisionStore(applicationSupportURL: support)
         )
 
         let archived = try service.archive(record)
@@ -332,6 +350,59 @@ final class SkillManagerCoreTests: XCTestCase {
         XCTAssertTrue(entries.allSatisfy(\.succeeded))
         XCTAssertTrue(entries.contains { $0.action == .archive && $0.skillName == "history-helper" })
         XCTAssertTrue(entries.contains { $0.action == .restore && $0.skillName == "history-helper" })
+    }
+
+    func testInventoryServiceExcludesProtectedAndReviewSkillsFromCleanup() throws {
+        let root = tempRoot.appendingPathComponent(".codex/skills", isDirectory: true)
+        let protectedURL = try makeSkill(path: ".codex/skills/protected-helper", markdown: """
+        ---
+        name: protected-helper
+        description: Protected helper.
+        ---
+        """)
+        let reviewURL = try makeSkill(path: ".codex/skills/review-helper", markdown: """
+        ---
+        name: review-helper
+        description: Review helper.
+        ---
+        """)
+        let cleanupURL = try makeSkill(path: ".codex/skills/cleanup-helper", markdown: """
+        ---
+        name: cleanup-helper
+        description: Cleanup helper.
+        ---
+        """)
+
+        let protected = makeRecord(id: "protected-helper", name: "protected-helper", title: "Protected Helper", summary: "Protected helper.", agent: .codex, path: protectedURL, rootPath: root)
+        let review = makeRecord(id: "review-helper", name: "review-helper", title: "Review Helper", summary: "Review helper.", agent: .codex, path: reviewURL, rootPath: root)
+        let cleanup = makeRecord(id: "cleanup-helper", name: "cleanup-helper", title: "Cleanup Helper", summary: "Cleanup helper.", agent: .codex, path: cleanupURL, rootPath: root)
+        let inventory = SkillInventory(active: [protected, review, cleanup], archived: [], scannedAt: Date(timeIntervalSince1970: 2_200_000))
+        let support = tempRoot.appendingPathComponent("Support", isDirectory: true)
+        let service = InventoryService(
+            scanner: SkillScanner(homeURL: tempRoot),
+            usageAnalyzer: UsageAnalyzer(homeURL: tempRoot),
+            archiveStore: ArchiveStore(applicationSupportURL: support),
+            historyStore: OperationHistoryStore(applicationSupportURL: support),
+            reportStore: CleanupReportStore(applicationSupportURL: support),
+            decisionStore: SkillDecisionStore(applicationSupportURL: support)
+        )
+
+        try service.setDecision(.protected, for: protected, now: Date(timeIntervalSince1970: 2_200_001))
+        try service.setDecision(.review, for: review, now: Date(timeIntervalSince1970: 2_200_002))
+
+        XCTAssertEqual(service.cleanupCandidates(in: inventory).map(\.name), ["cleanup-helper"])
+        XCTAssertEqual(service.protectedSkills(in: inventory).map(\.name), ["protected-helper"])
+        XCTAssertEqual(service.reviewSkills(in: inventory).map(\.name), ["review-helper"])
+
+        let export = try service.exportCleanupReport(
+            inventory: inventory,
+            skills: [cleanup],
+            now: Date(timeIntervalSince1970: 2_200_003)
+        )
+        let data = try Data(contentsOf: export.jsonURL)
+        let report = try JSONDecoder.skillManagerStore.decode(CleanupPlanReport.self, from: data)
+        XCTAssertEqual(report.protectedExcludedCount, 1)
+        XCTAssertEqual(report.reviewExcludedCount, 1)
     }
 
     func testCleanupReportStoreExportsMarkdownAndJSON() throws {
@@ -407,7 +478,8 @@ final class SkillManagerCoreTests: XCTestCase {
             usageAnalyzer: UsageAnalyzer(homeURL: tempRoot),
             archiveStore: ArchiveStore(applicationSupportURL: support),
             historyStore: OperationHistoryStore(applicationSupportURL: support),
-            reportStore: CleanupReportStore(applicationSupportURL: support)
+            reportStore: CleanupReportStore(applicationSupportURL: support),
+            decisionStore: SkillDecisionStore(applicationSupportURL: support)
         )
 
         let inventory = service.loadInventory(now: Date(timeIntervalSince1970: 2_100_000))
@@ -416,6 +488,11 @@ final class SkillManagerCoreTests: XCTestCase {
         let candidate = try XCTUnwrap(inventory.archiveCandidates.first)
         XCTAssertEqual(candidate.name, "fake-cleanup-skill")
         XCTAssertEqual(URL(fileURLWithPath: candidate.path).standardizedFileURL.path, skillURL.standardizedFileURL.path)
+
+        try service.setDecision(.protected, for: candidate, now: Date(timeIntervalSince1970: 2_100_000.5))
+        XCTAssertTrue(service.cleanupCandidates(in: inventory).isEmpty)
+        try service.setDecision(nil, for: candidate, now: Date(timeIntervalSince1970: 2_100_000.75))
+        XCTAssertEqual(service.cleanupCandidates(in: inventory).map(\.name), ["fake-cleanup-skill"])
 
         let export = try service.exportCleanupReport(
             inventory: inventory,

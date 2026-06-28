@@ -124,6 +124,10 @@ struct SidebarView: View {
             return "从未命中"
         case .suggested:
             return "可清理"
+        case .review:
+            return "人工确认"
+        case .protected:
+            return "跳过清理"
         case .cleanupPlan:
             return "先预览再清理"
         case .archived:

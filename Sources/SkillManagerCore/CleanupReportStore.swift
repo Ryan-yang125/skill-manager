@@ -31,15 +31,24 @@ public struct CleanupPlanReport: Codable, Hashable, Sendable {
     public var selectedBytes: Int64
     public var installedCount: Int
     public var archivedCount: Int
+    public var protectedExcludedCount: Int
+    public var reviewExcludedCount: Int
     public var skills: [CleanupSkillSnapshot]
 
-    public init(generatedAt: Date, inventory: SkillInventory, skills: [SkillRecord]) {
+    public init(
+        generatedAt: Date,
+        inventory: SkillInventory,
+        skills: [SkillRecord],
+        decisions: [String: SkillDecisionRecord] = [:]
+    ) {
         self.generatedAt = generatedAt
         self.selectedCount = skills.count
         self.selectedContextTokens = skills.reduce(0) { $0 + $1.tokenEstimate }
         self.selectedBytes = skills.reduce(0) { $0 + $1.sizeBytes }
         self.installedCount = inventory.active.count
         self.archivedCount = inventory.archived.count
+        self.protectedExcludedCount = inventory.archiveCandidates.filter { decisions[$0.id]?.decision == .protected }.count
+        self.reviewExcludedCount = inventory.archiveCandidates.filter { decisions[$0.id]?.decision == .review }.count
         self.skills = skills.map(CleanupSkillSnapshot.init(skill:))
     }
 }
@@ -72,10 +81,15 @@ public final class CleanupReportStore: @unchecked Sendable {
         self.reportsRootURL = support.appendingPathComponent("Reports", isDirectory: true)
     }
 
-    public func export(inventory: SkillInventory, skills: [SkillRecord], now: Date = Date()) throws -> CleanupReportExport {
+    public func export(
+        inventory: SkillInventory,
+        skills: [SkillRecord],
+        decisions: [String: SkillDecisionRecord] = [:],
+        now: Date = Date()
+    ) throws -> CleanupReportExport {
         try fileManager.createDirectory(at: reportsRootURL, withIntermediateDirectories: true)
 
-        let report = CleanupPlanReport(generatedAt: now, inventory: inventory, skills: skills)
+        let report = CleanupPlanReport(generatedAt: now, inventory: inventory, skills: skills, decisions: decisions)
         let basename = "cleanup-\(Self.fileDateString(from: now))"
         let jsonURL = reportsRootURL.appendingPathComponent("\(basename).json")
         let markdownURL = reportsRootURL.appendingPathComponent("\(basename).md")
@@ -97,6 +111,8 @@ public final class CleanupReportStore: @unchecked Sendable {
         lines.append("- Disk size to archive: \(SkillFormatting.bytes(report.selectedBytes))")
         lines.append("- Installed skills before cleanup: \(report.installedCount)")
         lines.append("- Archived skills before cleanup: \(report.archivedCount)")
+        lines.append("- Protected skills excluded: \(report.protectedExcludedCount)")
+        lines.append("- Review skills excluded: \(report.reviewExcludedCount)")
         lines.append("")
         lines.append("| Skill | Agent | Last used | Uses | Context | Path |")
         lines.append("| --- | --- | --- | ---: | ---: | --- |")
