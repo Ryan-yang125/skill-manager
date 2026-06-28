@@ -380,6 +380,72 @@ final class SkillManagerCoreTests: XCTestCase {
         XCTAssertEqual(report.selectedCount, 1)
         XCTAssertEqual(report.selectedContextTokens, 14)
         XCTAssertEqual(report.skills.first?.name, "report-helper")
+
+        let secondExport = try store.export(
+            inventory: inventory,
+            skills: [record],
+            now: Date(timeIntervalSince1970: 2_000_101)
+        )
+        XCTAssertNotEqual(export.markdownURL, secondExport.markdownURL)
+    }
+
+    func testFakeSkillCleanupFlowScansReportsArchivesAndRestores() throws {
+        let skillURL = try makeSkill(
+            path: ".codex/skills/fake-cleanup-skill",
+            markdown: """
+            ---
+            name: fake-cleanup-skill
+            description: Temporary cleanup validation skill.
+            ---
+
+            # Fake Cleanup Skill
+            """
+        )
+        let support = tempRoot.appendingPathComponent("Support", isDirectory: true)
+        let service = InventoryService(
+            scanner: SkillScanner(homeURL: tempRoot),
+            usageAnalyzer: UsageAnalyzer(homeURL: tempRoot),
+            archiveStore: ArchiveStore(applicationSupportURL: support),
+            historyStore: OperationHistoryStore(applicationSupportURL: support),
+            reportStore: CleanupReportStore(applicationSupportURL: support)
+        )
+
+        let inventory = service.loadInventory(now: Date(timeIntervalSince1970: 2_100_000))
+        XCTAssertEqual(inventory.active.count, 1)
+        XCTAssertEqual(inventory.archived.count, 0)
+        let candidate = try XCTUnwrap(inventory.archiveCandidates.first)
+        XCTAssertEqual(candidate.name, "fake-cleanup-skill")
+        XCTAssertEqual(URL(fileURLWithPath: candidate.path).standardizedFileURL.path, skillURL.standardizedFileURL.path)
+
+        let export = try service.exportCleanupReport(
+            inventory: inventory,
+            skills: [candidate],
+            now: Date(timeIntervalSince1970: 2_100_001)
+        )
+        XCTAssertTrue(FileManager.default.fileExists(atPath: export.markdownURL.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: export.jsonURL.path))
+        XCTAssertEqual(export.markdownURL.deletingLastPathComponent(), service.cleanupReportsDirectoryURL)
+
+        let archived = try service.archive(candidate)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: skillURL.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: archived.archivePath))
+
+        let afterArchive = service.loadInventory(now: Date(timeIntervalSince1970: 2_100_002))
+        XCTAssertTrue(afterArchive.active.isEmpty)
+        XCTAssertEqual(afterArchive.archived.count, 1)
+
+        try service.restore(archived)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: skillURL.path))
+
+        let afterRestore = service.loadInventory(now: Date(timeIntervalSince1970: 2_100_003))
+        XCTAssertEqual(afterRestore.active.count, 1)
+        XCTAssertTrue(afterRestore.archived.isEmpty)
+
+        let history = service.operationHistory()
+        XCTAssertEqual(history.count, 2)
+        XCTAssertEqual(history.first?.action, .restore)
+        XCTAssertEqual(history.last?.action, .archive)
+        XCTAssertTrue(history.allSatisfy(\.succeeded))
     }
 
     func testReleaseUpdateCheckerDetectsNewerRelease() throws {

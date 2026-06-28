@@ -130,11 +130,13 @@ struct MainContentView: View {
                     contextTokens: model.cleanupSelectedContextTokens,
                     diskBytes: model.cleanupSelectedBytes,
                     latestReportPath: model.latestCleanupReportPath,
+                    reportsDirectoryPath: model.cleanupReportsDirectoryPath,
                     archiveDisabled: model.isArchiving || model.cleanupSelectedCount == 0,
                     onSelectAll: { model.selectAllCleanupCandidates() },
                     onClear: { model.clearCleanupSelection() },
                     onExport: { model.exportCleanupPlanReport() },
                     onRevealReport: { model.revealLatestCleanupReport() },
+                    onRevealReportsDirectory: { model.revealCleanupReportsDirectory() },
                     onArchive: { model.requestArchiveCleanupPlan() }
                 )
 
@@ -184,6 +186,17 @@ struct MainContentView: View {
     private var historyContent: some View {
         ScrollView {
             LazyVStack(spacing: 10) {
+                if let summary = model.cleanupResultSummary {
+                    CleanupResultBannerView(
+                        summary: summary,
+                        reportPath: model.latestCleanupReportPath,
+                        reportsDirectoryPath: model.cleanupReportsDirectoryPath,
+                        onRevealReport: { model.revealLatestCleanupReport() },
+                        onRevealReportsDirectory: { model.revealCleanupReportsDirectory() },
+                        onDismiss: { model.clearCleanupResultSummary() }
+                    )
+                }
+
                 if model.operationHistory.isEmpty {
                     EmptyStateView(title: "暂无操作历史", subtitle: "归档和恢复记录会保存在本机")
                         .frame(maxWidth: .infinity, minHeight: 360)
@@ -345,11 +358,13 @@ private struct CleanupPlanSummaryView: View {
     let contextTokens: Int
     let diskBytes: Int64
     let latestReportPath: String?
+    let reportsDirectoryPath: String
     let archiveDisabled: Bool
     let onSelectAll: () -> Void
     let onClear: () -> Void
     let onExport: () -> Void
     let onRevealReport: () -> Void
+    let onRevealReportsDirectory: () -> Void
     let onArchive: () -> Void
 
     var body: some View {
@@ -372,16 +387,18 @@ private struct CleanupPlanSummaryView: View {
                 }
 
                 Spacer(minLength: 12)
+            }
 
-                HStack(spacing: 8) {
-                    Button("全选", action: onSelectAll)
-                    Button("清空", action: onClear)
-                    Button("导出报告", action: onExport)
-                        .disabled(selectedCount == 0)
-                    Button("归档选中", action: onArchive)
-                        .buttonStyle(.borderedProminent)
-                        .disabled(archiveDisabled)
-                }
+            HStack(spacing: 8) {
+                Button("全选", action: onSelectAll)
+                Button("清空", action: onClear)
+                Button("导出报告", action: onExport)
+                    .disabled(selectedCount == 0)
+                Button("报告目录", action: onRevealReportsDirectory)
+                Spacer(minLength: 12)
+                Button("归档选中", action: onArchive)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(archiveDisabled)
             }
 
             if let latestReportPath {
@@ -397,6 +414,19 @@ private struct CleanupPlanSummaryView: View {
                     Button("查看报告", action: onRevealReport)
                         .buttonStyle(.borderless)
                 }
+            } else {
+                HStack(spacing: 8) {
+                    Image(systemName: "folder")
+                        .foregroundStyle(.secondary)
+                    Text(reportsDirectoryPath)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Button("打开目录", action: onRevealReportsDirectory)
+                        .buttonStyle(.borderless)
+                }
             }
         }
         .padding(16)
@@ -405,6 +435,67 @@ private struct CleanupPlanSummaryView: View {
         .overlay {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(Color.primary.opacity(0.08), lineWidth: 1)
+        }
+    }
+}
+
+private struct CleanupResultBannerView: View {
+    let summary: String
+    let reportPath: String?
+    let reportsDirectoryPath: String
+    let onRevealReport: () -> Void
+    let onRevealReportsDirectory: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.green)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("清理计划已完成")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text(summary)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 12)
+
+                Button("清除", action: onDismiss)
+                    .buttonStyle(.borderless)
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: reportPath == nil ? "folder" : "doc.text")
+                    .foregroundStyle(.secondary)
+
+                Text(reportPath ?? reportsDirectoryPath)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                Spacer(minLength: 12)
+
+                if reportPath != nil {
+                    Button("查看报告", action: onRevealReport)
+                        .buttonStyle(.borderless)
+                }
+
+                Button("报告目录", action: onRevealReportsDirectory)
+                    .buttonStyle(.borderless)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+        .overlay {
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.green.opacity(0.25), lineWidth: 1)
         }
     }
 }

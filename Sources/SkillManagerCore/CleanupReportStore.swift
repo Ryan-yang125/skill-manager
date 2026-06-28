@@ -117,7 +117,7 @@ public final class CleanupReportStore: @unchecked Sendable {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyyMMdd-HHmm"
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
         return formatter.string(from: date)
     }
 

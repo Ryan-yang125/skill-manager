@@ -35,6 +35,7 @@ Project-level skills are out of scope for the first release.
 - Filter by all, unused, suggested archive, archived, agent, and collection.
 - Cleanup Plan view with selectable archive candidates.
 - Markdown and JSON cleanup reports before batch archive.
+- Cleanup completion summary with report and report-folder shortcuts.
 - Local operation history for archive and restore actions.
 - Archive and restore skills through a recoverable local archive.
 - Finder reveal for active and archived skills.
@@ -52,7 +53,8 @@ Project-level skills are out of scope for the first release.
 5. Use **Finder** to open the skill folder, or **Archive** to move a stale skill
    into the recoverable local archive.
 6. Open **Cleanup Plan** to select the suggested cleanup set, export a report,
-   and batch archive the selected skills.
+   and batch archive the selected skills. After cleanup, the app opens
+   **History** and shows the saved report location.
 7. Open **History** to review local archive and restore operations.
 8. Open **Archived** when you need to restore a skill.
 9. Use **Check for Updates** to open the latest GitHub Release when a newer
@@ -89,7 +91,7 @@ skills or session history.
 
 ## Install From GitHub Release
 
-1. Download `SkillManager-v0.1.3-macos.zip` from the
+1. Download `SkillManager-v0.1.4-macos.zip` from the
    [latest release](https://github.com/Ryan-yang125/skill-manager/releases/latest).
 2. Unzip it.
 3. Open `SkillManager.app`.

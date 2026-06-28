@@ -65,6 +65,12 @@ final class AppModel: ObservableObject {
         var tokenEstimate: Int
     }
 
+    private struct CleanupArchiveResult: Sendable {
+        var export: CleanupReportExport?
+        var archivedCount: Int
+        var failures: [String]
+    }
+
     @Published var inventory = SkillInventory(active: [], archived: [], scannedAt: Date())
     @Published var selectedFilter: SidebarSelection = .section(.all)
     @Published var selectedSkillID: String?
@@ -80,6 +86,8 @@ final class AppModel: ObservableObject {
     @Published var operationHistory: [SkillOperationEntry] = []
     @Published var selectedCleanupSkillIDs: Set<String> = []
     @Published var latestCleanupReportPath: String?
+    @Published var latestCleanupReportJSONPath: String?
+    @Published var cleanupResultSummary: String?
     @Published var updateCheckState: UpdateCheckState = .idle
     @Published var isArchiving = false
 
@@ -117,6 +125,10 @@ final class AppModel: ObservableObject {
 
     var cleanupSelectedBytes: Int64 {
         selectedCleanupSkills.reduce(0) { $0 + $1.sizeBytes }
+    }
+
+    var cleanupReportsDirectoryPath: String {
+        service.cleanupReportsDirectoryURL.path
     }
 
     var currentVersion: String {
@@ -392,6 +404,8 @@ final class AppModel: ObservableObject {
         do {
             let export = try service.exportCleanupReport(inventory: inventory, skills: selected)
             latestCleanupReportPath = export.markdownURL.path
+            latestCleanupReportJSONPath = export.jsonURL.path
+            cleanupResultSummary = "已导出 \(selected.count) 个清理项的报告"
             statusMessage = "已导出清理报告"
             NSWorkspace.shared.activateFileViewerSelecting([export.markdownURL])
         } catch {
@@ -402,6 +416,16 @@ final class AppModel: ObservableObject {
     func revealLatestCleanupReport() {
         guard let latestCleanupReportPath else { return }
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: latestCleanupReportPath)])
+    }
+
+    func revealCleanupReportsDirectory() {
+        let url = service.cleanupReportsDirectoryURL
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        NSWorkspace.shared.open(url)
+    }
+
+    func clearCleanupResultSummary() {
+        cleanupResultSummary = nil
     }
 
     func archiveSelectedCleanupPlan() {
@@ -426,7 +450,7 @@ final class AppModel: ObservableObject {
                     report = try service.exportCleanupReport(inventory: inventory, skills: selected)
                 } catch {
                     failures.append("导出报告：\(error.localizedDescription)")
-                    return (report, archivedCount, failures)
+                    return CleanupArchiveResult(export: report, archivedCount: archivedCount, failures: failures)
                 }
 
                 for skill in selected {
@@ -437,18 +461,35 @@ final class AppModel: ObservableObject {
                         failures.append("\(skill.title)：\(error.localizedDescription)")
                     }
                 }
-                return (report, archivedCount, failures)
+                return CleanupArchiveResult(export: report, archivedCount: archivedCount, failures: failures)
             }.value
 
             isArchiving = false
-            if let report = result.0 {
+            if let report = result.export {
                 latestCleanupReportPath = report.markdownURL.path
+                latestCleanupReportJSONPath = report.jsonURL.path
             }
-            if !result.2.isEmpty {
-                errorMessage = result.2.prefix(3).joined(separator: "\n")
+
+            if result.export == nil {
+                let message = result.failures.first ?? "导出报告失败"
+                cleanupResultSummary = "清理计划未执行：\(message)"
+                statusMessage = cleanupResultSummary ?? "清理计划未执行"
+                errorMessage = message
+                return
             }
+
+            let failureCount = result.failures.count
+            cleanupResultSummary = cleanupSummary(
+                archivedCount: result.archivedCount,
+                failureCount: failureCount,
+                reportPath: result.export?.markdownURL.path
+            )
+            if failureCount > 0 {
+                errorMessage = result.failures.prefix(3).joined(separator: "\n")
+            }
+            selectedFilter = .section(.history)
             operationHistory = service.operationHistory()
-            reload(statusAfterScan: "已归档 \(result.1) 个清理计划项")
+            reload(statusAfterScan: cleanupResultSummary)
         }
     }
 
@@ -565,5 +606,16 @@ final class AppModel: ObservableObject {
                 return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
             }
         }
+    }
+
+    private func cleanupSummary(archivedCount: Int, failureCount: Int, reportPath: String?) -> String {
+        var parts = ["已归档 \(archivedCount) 个"]
+        if failureCount > 0 {
+            parts.append("失败 \(failureCount) 个")
+        }
+        if let reportPath {
+            parts.append("报告已保存：\(URL(fileURLWithPath: reportPath).lastPathComponent)")
+        }
+        return parts.joined(separator: "，")
     }
 }

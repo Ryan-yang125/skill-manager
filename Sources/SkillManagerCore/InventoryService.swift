@@ -45,6 +45,10 @@ public final class InventoryService: @unchecked Sendable {
         historyStore.entries()
     }
 
+    public var cleanupReportsDirectoryURL: URL {
+        reportStore.reportsRootURL
+    }
+
     public func exportCleanupReport(inventory: SkillInventory, skills: [SkillRecord], now: Date = Date()) throws -> CleanupReportExport {
         try reportStore.export(inventory: inventory, skills: skills, now: now)
     }
