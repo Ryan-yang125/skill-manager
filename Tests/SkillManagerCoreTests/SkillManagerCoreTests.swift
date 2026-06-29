@@ -72,6 +72,23 @@ final class SkillManagerCoreTests: XCTestCase {
             # ai-promo-video-kit
             """
         )
+        try writeSkillLock(
+            """
+            {
+              "version": 1,
+              "skills": {
+                "ai-promo-video-kit": {
+                  "source": "heygen-com/hyperframes",
+                  "sourceType": "github",
+                  "sourceUrl": "https://github.com/heygen-com/hyperframes.git",
+                  "skillPath": "skills/ai-promo-video-kit/SKILL.md",
+                  "installedAt": "2026-03-07T06:44:41.706Z",
+                  "updatedAt": "2026-06-17T14:10:36.101Z"
+                }
+              }
+            }
+            """
+        )
 
         let now = Date(timeIntervalSince1970: 2_000_000)
         let evidence = UsageEvidence(
@@ -95,6 +112,43 @@ final class SkillManagerCoreTests: XCTestCase {
         XCTAssertEqual(records[0].usageCount, 3)
         XCTAssertEqual(records[0].usageEvidence.first?.kind, .codexSkillRead)
         XCTAssertEqual(records[0].recommendation, .keep)
+        XCTAssertEqual(records[0].package?.source, "heygen-com/hyperframes")
+        XCTAssertEqual(records[0].package?.id, "https://github.com/heygen-com/hyperframes")
+        XCTAssertEqual(records[0].package?.skillPath, "skills/ai-promo-video-kit/SKILL.md")
+        XCTAssertNotNil(records[0].package?.installedAt)
+    }
+
+    func testSkillPackageStoreReadsNpxSkillLock() throws {
+        try writeSkillLock(
+            """
+            {
+              "version": 1,
+              "skills": {
+                "dbs-action": {
+                  "source": "dontbesilent2025/dbskill",
+                  "sourceType": "github",
+                  "sourceUrl": "https://github.com/dontbesilent2025/dbskill.git",
+                  "skillPath": "skills/dbs-action/SKILL.md",
+                  "pluginName": "dbs-action",
+                  "installedAt": "2026-03-07T06:44:41.706Z",
+                  "updatedAt": "2026-03-08T06:44:41Z"
+                }
+              }
+            }
+            """
+        )
+
+        let packages = SkillPackageStore(homeURL: tempRoot).metadataBySkillName()
+        let package = try XCTUnwrap(packages["dbs-action"])
+
+        XCTAssertEqual(package.id, "https://github.com/dontbesilent2025/dbskill")
+        XCTAssertEqual(package.source, "dontbesilent2025/dbskill")
+        XCTAssertEqual(package.sourceType, "github")
+        XCTAssertEqual(package.sourceURL, "https://github.com/dontbesilent2025/dbskill.git")
+        XCTAssertEqual(package.skillPath, "skills/dbs-action/SKILL.md")
+        XCTAssertEqual(packages["dbs-action"]?.id, package.id)
+        XCTAssertNotNil(package.installedAt)
+        XCTAssertNotNil(package.updatedAt)
     }
 
     func testUsageAnalyzerFindsSkillNamesInLocalSessions() throws {
@@ -458,7 +512,16 @@ final class SkillManagerCoreTests: XCTestCase {
             path: skillURL,
             rootPath: skillURL.deletingLastPathComponent(),
             tokenEstimate: 14,
-            sizeBytes: 120
+            sizeBytes: 120,
+            package: SkillPackageMetadata(
+                id: "https://github.com/example/package",
+                source: "example/package",
+                sourceType: "github",
+                sourceURL: "https://github.com/example/package.git",
+                skillPath: "skills/report-helper/SKILL.md",
+                installedAt: Date(timeIntervalSince1970: 1_900_000),
+                updatedAt: Date(timeIntervalSince1970: 1_900_100)
+            )
         )
         let inventory = SkillInventory(
             active: [record],
@@ -481,6 +544,7 @@ final class SkillManagerCoreTests: XCTestCase {
         XCTAssertTrue(markdown.contains("14 tokens"))
         XCTAssertTrue(markdown.contains("No local usage evidence"))
         XCTAssertTrue(markdown.contains("No evidence"))
+        XCTAssertTrue(markdown.contains("example/package"))
 
         let data = try Data(contentsOf: export.jsonURL)
         let report = try JSONDecoder.skillManagerStore.decode(CleanupPlanReport.self, from: data)
@@ -489,6 +553,8 @@ final class SkillManagerCoreTests: XCTestCase {
         XCTAssertEqual(report.skills.first?.name, "report-helper")
         XCTAssertEqual(report.skills.first?.recommendationReason, "No local usage evidence")
         XCTAssertEqual(report.skills.first?.evidenceCount, 0)
+        XCTAssertEqual(report.skills.first?.packageSource, "example/package")
+        XCTAssertEqual(report.skills.first?.packageSourceURL, "https://github.com/example/package.git")
 
         let secondExport = try store.export(
             inventory: inventory,
@@ -628,6 +694,12 @@ final class SkillManagerCoreTests: XCTestCase {
         return folder
     }
 
+    private func writeSkillLock(_ json: String) throws {
+        let lockURL = tempRoot.appendingPathComponent(".agents/.skill-lock.json")
+        try FileManager.default.createDirectory(at: lockURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try json.write(to: lockURL, atomically: true, encoding: .utf8)
+    }
+
     private func makeRecord(
         id: String,
         name: String,
@@ -637,7 +709,8 @@ final class SkillManagerCoreTests: XCTestCase {
         path: URL,
         rootPath: URL,
         tokenEstimate: Int = 12,
-        sizeBytes: Int64 = 20
+        sizeBytes: Int64 = 20,
+        package: SkillPackageMetadata? = nil
     ) -> SkillRecord {
         SkillRecord(
             id: id,
@@ -653,6 +726,7 @@ final class SkillManagerCoreTests: XCTestCase {
             tokenEstimate: tokenEstimate,
             lastUsedAt: nil,
             usageCount: 0,
+            package: package,
             recommendation: .archive,
             isArchived: false
         )

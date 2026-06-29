@@ -137,6 +137,14 @@ struct MainContentView: View {
     private var skillsContent: some View {
         ScrollView {
             VStack(spacing: 0) {
+                if let package = model.selectedPackageGroup {
+                    PackageSummaryView(
+                        package: package,
+                        onOpenSource: { model.openPackageSource(package) }
+                    )
+                    .padding(.bottom, 16)
+                }
+
                 listHeader
 
                 if model.filteredSkills.isEmpty {
@@ -331,15 +339,15 @@ struct MainContentView: View {
             return section.systemImage
         case .agent(let agent):
             return icon(for: agent)
-        case .collection:
+        case .package:
             return "square.stack.3d.up"
         }
     }
 
     private func familyTitle(for skill: SkillRecord) -> String? {
-        let id = model.collectionID(for: skill)
+        let id = model.packageID(for: skill)
         guard id != "single" else { return nil }
-        return model.collectionTitle(for: id)
+        return model.packageTitle(for: id)
     }
 
     private func icon(for agent: SkillAgent) -> String {
@@ -349,6 +357,78 @@ struct MainContentView: View {
         case .claude: return "sparkle"
         case .gemini: return "diamond"
         case .unknown: return "questionmark.circle"
+        }
+    }
+}
+
+private struct PackageSummaryView: View {
+    let package: AppModel.SkillPackageGroup
+    let onOpenSource: () -> Void
+
+    var body: some View {
+        CraftSurface {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .center, spacing: 14) {
+                    CraftIconTile(systemImage: "square.stack.3d.up", tint: .accentColor, size: 40)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(package.title)
+                            .font(.system(size: 18, weight: .semibold))
+                            .lineLimit(1)
+
+                        Text(sourceLine)
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: 12)
+
+                    if package.sourceURL != nil {
+                        Button("Source", action: onOpenSource)
+                            .buttonStyle(CraftCapsuleButtonStyle())
+                    }
+                }
+
+                HStack(spacing: 22) {
+                    PackageMetric(label: "Skills", value: "\(package.count)")
+                    PackageMetric(label: "Unused", value: "\(package.unusedCount)")
+                    PackageMetric(label: "Uses", value: "\(package.usageCount)")
+                    PackageMetric(label: "Context", value: SkillFormatting.contextTokens(package.tokenEstimate))
+                    if let installedAt = package.installedAt {
+                        PackageMetric(label: "Installed", value: SkillFormatting.relativeDate(installedAt))
+                    }
+                    if let updatedAt = package.updatedAt {
+                        PackageMetric(label: "Updated", value: SkillFormatting.relativeDate(updatedAt))
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+            .padding(18)
+        }
+    }
+
+    private var sourceLine: String {
+        if package.isInferred {
+            return "Inferred from local skill names"
+        }
+        return package.sourceURL ?? "Installed package"
+    }
+}
+
+private struct PackageMetric: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
         }
     }
 }

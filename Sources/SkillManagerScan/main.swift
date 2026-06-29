@@ -37,11 +37,12 @@ print("contextTokens=\(inventory.totalContextTokens)")
 print("reclaimableContextTokens=\(inventory.reclaimableContextTokens)")
 print("installedBytes=\(audit.installedBytes)")
 print("reclaimableBytes=\(audit.reclaimableBytes)")
+print("packages=\(Set(inventory.active.compactMap { $0.package?.id }).count)")
 print("rootAudit=")
 for root in audit.roots {
     print("- \(root.agent.rawValue) | exists=\(root.exists) | skills=\(root.skillCount) | \(root.path)")
 }
 
 for skill in inventory.active.prefix(8) {
-    print("- \(skill.title) | \(skill.agent.rawValue) | \(SkillFormatting.contextTokens(skill.tokenEstimate)) | \(SkillFormatting.relativeDate(skill.lastUsedAt)) | \(skill.recommendation.rawValue)")
+    print("- \(skill.title) | \(skill.agent.rawValue) | \(skill.package?.source ?? "manual") | \(SkillFormatting.contextTokens(skill.tokenEstimate)) | \(SkillFormatting.relativeDate(skill.lastUsedAt)) | \(skill.recommendation.rawValue)")
 }

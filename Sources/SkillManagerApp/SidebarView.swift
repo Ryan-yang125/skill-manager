@@ -42,16 +42,16 @@ struct SidebarView: View {
                 }
             }
 
-            if !model.skillCollections.isEmpty {
-                Section("Collections") {
-                    ForEach(model.skillCollections) { collection in
+            if !model.skillPackages.isEmpty {
+                Section("Packages") {
+                    ForEach(model.skillPackages) { package in
                         SidebarRow(
-                            title: collection.title,
-                            detail: "\(SkillFormatting.tokens(collection.tokenEstimate)) context",
+                            title: package.title,
+                            detail: "\(SkillFormatting.tokens(package.tokenEstimate)) context",
                             systemImage: "square.stack.3d.up",
-                            count: collection.count
+                            count: package.count
                         )
-                        .tag(AppModel.SidebarSelection.collection(collection.id))
+                        .tag(AppModel.SidebarSelection.package(package.id))
                     }
                 }
             }

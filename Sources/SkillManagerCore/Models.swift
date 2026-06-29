@@ -73,6 +73,40 @@ public enum SkillRecommendationReason: String, Codable, Hashable, Sendable {
     case recentEvidence
 }
 
+public struct SkillPackageMetadata: Codable, Hashable, Sendable {
+    public var id: String
+    public var source: String
+    public var sourceType: String?
+    public var sourceURL: String?
+    public var skillPath: String?
+    public var pluginName: String?
+    public var installedAt: Date?
+    public var updatedAt: Date?
+    public var isInferred: Bool
+
+    public init(
+        id: String,
+        source: String,
+        sourceType: String? = nil,
+        sourceURL: String? = nil,
+        skillPath: String? = nil,
+        pluginName: String? = nil,
+        installedAt: Date? = nil,
+        updatedAt: Date? = nil,
+        isInferred: Bool = false
+    ) {
+        self.id = id
+        self.source = source
+        self.sourceType = sourceType
+        self.sourceURL = sourceURL
+        self.skillPath = skillPath
+        self.pluginName = pluginName
+        self.installedAt = installedAt
+        self.updatedAt = updatedAt
+        self.isInferred = isInferred
+    }
+}
+
 public struct SkillRecord: Identifiable, Codable, Hashable, Sendable {
     public var id: String
     public var name: String
@@ -88,6 +122,7 @@ public struct SkillRecord: Identifiable, Codable, Hashable, Sendable {
     public var lastUsedAt: Date?
     public var usageCount: Int
     public var usageEvidence: [UsageEvidence]
+    public var package: SkillPackageMetadata?
     public var recommendation: SkillRecommendation
     public var isArchived: Bool
 
@@ -106,6 +141,7 @@ public struct SkillRecord: Identifiable, Codable, Hashable, Sendable {
         lastUsedAt: Date?,
         usageCount: Int,
         usageEvidence: [UsageEvidence] = [],
+        package: SkillPackageMetadata? = nil,
         recommendation: SkillRecommendation,
         isArchived: Bool
     ) {
@@ -123,6 +159,7 @@ public struct SkillRecord: Identifiable, Codable, Hashable, Sendable {
         self.lastUsedAt = lastUsedAt
         self.usageCount = usageCount
         self.usageEvidence = usageEvidence
+        self.package = package
         self.recommendation = recommendation
         self.isArchived = isArchived
     }

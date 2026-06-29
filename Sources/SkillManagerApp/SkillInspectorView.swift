@@ -11,6 +11,7 @@ struct SkillInspectorView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         header(for: skill)
                         reasonSection(for: skill)
+                        packageSection(for: skill)
                         actions(for: skill)
                         metrics(for: skill)
                         evidenceSection(for: skill)
@@ -67,6 +68,38 @@ struct SkillInspectorView: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func packageSection(for skill: SkillRecord) -> some View {
+        CraftSurface {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Package")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+
+                if let package = skill.package {
+                    InspectorMetricRow(label: "来源", value: model.packageTitle(for: package.id))
+                    if let sourceURL = package.sourceURL {
+                        InspectorMetricRow(label: "URL", value: sourceURL)
+                    }
+                    if let installedAt = package.installedAt {
+                        InspectorMetricRow(label: "安装", value: SkillFormatting.relativeDate(installedAt))
+                    }
+                    if let updatedAt = package.updatedAt {
+                        InspectorMetricRow(label: "更新", value: SkillFormatting.relativeDate(updatedAt))
+                    }
+                    if let skillPath = package.skillPath {
+                        InspectorMetricRow(label: "skillPath", value: skillPath)
+                    }
+                } else {
+                    Text("未找到安装包元数据")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(14)
         }
     }
 

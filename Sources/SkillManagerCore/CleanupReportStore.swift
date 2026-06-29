@@ -14,6 +14,10 @@ public struct CleanupSkillSnapshot: Codable, Hashable, Sendable {
     public var evidenceCount: Int
     public var latestEvidenceKind: UsageEvidenceKind?
     public var latestEvidencePath: String?
+    public var packageID: String?
+    public var packageSource: String?
+    public var packageSourceURL: String?
+    public var packageIsInferred: Bool
 
     public init(skill: SkillRecord, decision: SkillUserDecision?, now: Date = Date()) {
         self.id = skill.id
@@ -29,6 +33,10 @@ public struct CleanupSkillSnapshot: Codable, Hashable, Sendable {
         self.evidenceCount = skill.usageEvidence.count
         self.latestEvidenceKind = skill.usageEvidence.first?.kind
         self.latestEvidencePath = skill.usageEvidence.first?.sessionPath
+        self.packageID = skill.package?.id
+        self.packageSource = skill.package?.source
+        self.packageSourceURL = skill.package?.sourceURL
+        self.packageIsInferred = skill.package?.isInferred ?? false
     }
 
     private static func reasonText(for skill: SkillRecord, decision: SkillUserDecision?, now: Date) -> String {
@@ -143,11 +151,12 @@ public final class CleanupReportStore: @unchecked Sendable {
         lines.append("- Protected skills excluded: \(report.protectedExcludedCount)")
         lines.append("- Review skills excluded: \(report.reviewExcludedCount)")
         lines.append("")
-        lines.append("| Skill | Agent | Reason | Evidence | Last used | Uses | Context | Path |")
-        lines.append("| --- | --- | --- | ---: | --- | ---: | ---: | --- |")
+        lines.append("| Skill | Package | Agent | Reason | Evidence | Last used | Uses | Context | Path |")
+        lines.append("| --- | --- | --- | --- | ---: | --- | ---: | ---: | --- |")
         for skill in report.skills {
             let evidenceSummary = skill.latestEvidenceKind.map { "\($0.label) · \(skill.evidenceCount)" } ?? "No evidence · \(skill.evidenceCount)"
-            lines.append("| \(escape(skill.title)) | \(escape(skill.agent.rawValue)) | \(escape(skill.recommendationReason)) | \(escape(evidenceSummary)) | \(escape(SkillFormatting.relativeDate(skill.lastUsedAt, now: report.generatedAt))) | \(skill.usageCount) | \(escape(SkillFormatting.contextTokens(skill.tokenEstimate))) | `\(escape(skill.path))` |")
+            let packageSummary = skill.packageSource ?? "Manual"
+            lines.append("| \(escape(skill.title)) | \(escape(packageSummary)) | \(escape(skill.agent.rawValue)) | \(escape(skill.recommendationReason)) | \(escape(evidenceSummary)) | \(escape(SkillFormatting.relativeDate(skill.lastUsedAt, now: report.generatedAt))) | \(skill.usageCount) | \(escape(SkillFormatting.contextTokens(skill.tokenEstimate))) | `\(escape(skill.path))` |")
         }
         lines.append("")
         lines.append("Archive is recoverable from the Skill Manager archive manifest.")

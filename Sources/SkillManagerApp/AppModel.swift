@@ -45,13 +45,13 @@ final class AppModel: ObservableObject {
     enum SidebarSelection: Hashable, Identifiable {
         case section(Section)
         case agent(SkillAgent)
-        case collection(String)
+        case package(String)
 
         var id: String {
             switch self {
             case .section(let section): return "section:\(section.id)"
             case .agent(let agent): return "agent:\(agent.rawValue)"
-            case .collection(let id): return "collection:\(id)"
+            case .package(let id): return "package:\(id)"
             }
         }
     }
@@ -64,11 +64,17 @@ final class AppModel: ObservableObject {
         case failed(String)
     }
 
-    struct SkillCollection: Identifiable, Hashable {
+    struct SkillPackageGroup: Identifiable, Hashable {
         var id: String
         var title: String
         var count: Int
         var tokenEstimate: Int
+        var usageCount: Int
+        var unusedCount: Int
+        var sourceURL: String?
+        var installedAt: Date?
+        var updatedAt: Date?
+        var isInferred: Bool
     }
 
     private struct CleanupArchiveResult: Sendable {
@@ -196,21 +202,41 @@ final class AppModel: ObservableObject {
         [.shared, .codex, .claude].filter { agentCount($0) > 0 }
     }
 
-    var skillCollections: [SkillCollection] {
-        let grouped = Dictionary(grouping: inventory.active, by: collectionID(for:))
+    var skillPackages: [SkillPackageGroup] {
+        let grouped = Dictionary(grouping: inventory.active, by: packageID(for:))
         return grouped.compactMap { id, skills in
             guard id != "single", skills.count > 1 else { return nil }
-            return SkillCollection(
-                id: id,
-                title: collectionTitle(for: id),
-                count: skills.count,
-                tokenEstimate: skills.reduce(0) { $0 + $1.tokenEstimate }
-            )
+            return packageGroup(id: id, skills: skills)
         }
         .sorted { lhs, rhs in
             if lhs.count != rhs.count { return lhs.count > rhs.count }
+            if lhs.tokenEstimate != rhs.tokenEstimate { return lhs.tokenEstimate > rhs.tokenEstimate }
             return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
         }
+    }
+
+    var selectedPackageGroup: SkillPackageGroup? {
+        guard case .package(let id) = selectedFilter else { return nil }
+        let skills = inventory.active.filter { packageID(for: $0) == id }
+        guard !skills.isEmpty else { return nil }
+        return packageGroup(id: id, skills: skills)
+    }
+
+    private func packageGroup(id: String, skills: [SkillRecord]) -> SkillPackageGroup {
+        let packages = skills.compactMap(\.package)
+        let realPackage = packages.first { !$0.isInferred } ?? packages.first
+        return SkillPackageGroup(
+            id: id,
+            title: packageTitle(for: id),
+            count: skills.count,
+            tokenEstimate: skills.reduce(0) { $0 + $1.tokenEstimate },
+            usageCount: skills.reduce(0) { $0 + $1.usageCount },
+            unusedCount: skills.filter { $0.usageCount == 0 }.count,
+            sourceURL: realPackage?.sourceURL,
+            installedAt: packages.compactMap(\.installedAt).min(),
+            updatedAt: packages.compactMap(\.updatedAt).max(),
+            isInferred: realPackage?.isInferred ?? true
+        )
     }
 
     var displayTitle: String {
@@ -219,8 +245,8 @@ final class AppModel: ObservableObject {
             return section.rawValue
         case .agent(let agent):
             return agent.rawValue
-        case .collection(let id):
-            return collectionTitle(for: id)
+        case .package(let id):
+            return packageTitle(for: id)
         }
     }
 
@@ -247,8 +273,8 @@ final class AppModel: ObservableObject {
         case .agent(let agent):
             let skills = inventory.active.filter { $0.agent == agent }
             return "\(skills.count) skills · \(SkillFormatting.tokens(skills.reduce(0) { $0 + $1.tokenEstimate })) context tokens"
-        case .collection(let id):
-            let skills = inventory.active.filter { collectionID(for: $0) == id }
+        case .package(let id):
+            let skills = inventory.active.filter { packageID(for: $0) == id }
             return "\(skills.count) skills · \(SkillFormatting.tokens(skills.reduce(0) { $0 + $1.tokenEstimate })) context tokens"
         }
     }
@@ -291,7 +317,14 @@ final class AppModel: ObservableObject {
         inventory.active.filter { $0.agent == agent }.count
     }
 
-    func collectionID(for skill: SkillRecord) -> String {
+    func packageID(for skill: SkillRecord) -> String {
+        if let package = skill.package {
+            return package.id
+        }
+        return inferredPackageID(for: skill)
+    }
+
+    private func inferredPackageID(for skill: SkillRecord) -> String {
         let name = skill.name.lowercased()
         let folder = URL(fileURLWithPath: skill.path).lastPathComponent.lowercased()
         let source = name.isEmpty ? folder : name
@@ -309,7 +342,11 @@ final class AppModel: ObservableObject {
         return "single"
     }
 
-    func collectionTitle(for id: String) -> String {
+    func packageTitle(for id: String) -> String {
+        if let package = inventory.active.compactMap(\.package).first(where: { $0.id == id }) {
+            return Self.displayTitle(for: package)
+        }
+
         switch id {
         case "dbs": return "DBS"
         case "baoyu": return "Baoyu"
@@ -324,6 +361,44 @@ final class AppModel: ObservableObject {
                 .map { $0.prefix(1).uppercased() + $0.dropFirst() }
                 .joined(separator: " ")
         }
+    }
+
+    private static func displayTitle(for package: SkillPackageMetadata) -> String {
+        if let sourceURL = package.sourceURL,
+           let title = repositoryTitle(from: sourceURL) {
+            return title
+        }
+
+        if let title = repositoryTitle(from: package.source) {
+            return title
+        }
+
+        return package.source
+    }
+
+    private static func repositoryTitle(from value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        if let url = URL(string: trimmed),
+           let host = url.host?.lowercased(),
+           host.contains("github.com") {
+            let components = url.path
+                .split(separator: "/")
+                .map { String($0).replacingOccurrences(of: ".git", with: "") }
+            if components.count >= 2 {
+                return "\(components[0])/\(components[1])"
+            }
+        }
+
+        let slashParts = trimmed
+            .replacingOccurrences(of: ".git", with: "")
+            .split(separator: "/")
+        if slashParts.count == 2 {
+            return slashParts.map(String.init).joined(separator: "/")
+        }
+
+        return nil
     }
 
     func reload() {
@@ -615,6 +690,14 @@ final class AppModel: ObservableObject {
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: evidence.sessionPath)])
     }
 
+    func openPackageSource(_ package: SkillPackageGroup) {
+        guard let sourceURL = package.sourceURL,
+              let url = URL(string: sourceURL) else {
+            return
+        }
+        NSWorkspace.shared.open(url)
+    }
+
     func select(_ selection: SidebarSelection) {
         selectedFilter = selection
         selectedSkillID = filteredSkills.first?.id
@@ -642,8 +725,8 @@ final class AppModel: ObservableObject {
             return []
         case .agent(let agent):
             return inventory.active.filter { $0.agent == agent }
-        case .collection(let id):
-            return inventory.active.filter { collectionID(for: $0) == id }
+        case .package(let id):
+            return inventory.active.filter { packageID(for: $0) == id }
         }
     }
 
@@ -656,7 +739,7 @@ final class AppModel: ObservableObject {
             skill.name.lowercased().contains(query) ||
             skill.summary.lowercased().contains(query) ||
             skill.agent.rawValue.lowercased().contains(query) ||
-            collectionTitle(for: collectionID(for: skill)).lowercased().contains(query)
+            packageTitle(for: packageID(for: skill)).lowercased().contains(query)
         }
     }
 

@@ -5,7 +5,7 @@ cleaning global agent skills.
 
 It scans global skill folders, estimates the context cost of each skill from its
 `name` and `description`, checks local session logs for usage evidence, and lets
-you archive or restore unused skills.
+you inspect packages, archive unused skills, and restore them when needed.
 
 ![Skill Manager main window](docs/screenshots/main-window.png)
 
@@ -29,6 +29,8 @@ Project-level skills are out of scope for the first release.
 
 - Craft-inspired native macOS sidebar and light list layout.
 - Local-only scan, with no network dependency for inventory.
+- Package-aware grouping from `~/.agents/.skill-lock.json`, including install
+  source, source URL, install time, update time, and lockfile `skillPath`.
 - Usage evidence from Claude `Skill` tool calls and Codex tool calls that read
   `SKILL.md`.
 - Evidence inspector showing matched session file, agent, match type, and time.
@@ -37,13 +39,13 @@ Project-level skills are out of scope for the first release.
 - Scan Diagnostics view for global skill roots, session roots, log counts, and
   total evidence hits.
 - Sort by recent use, usage count, context tokens, or name.
-- Filter by all, unused, suggested archive, archived, agent, and collection.
+- Filter by all, unused, suggested archive, archived, agent, and package.
 - Cleanup Plan view with selectable archive candidates.
 - Protect important skills so cleanup suggestions and batch archive skip them.
 - Mark uncertain skills for review and inspect them in a dedicated review queue.
-- Detail inspector with path, usage, context cost, source, and quick actions.
+- Detail inspector with package source, path, usage, context cost, and quick actions.
 - Markdown and JSON cleanup reports before batch archive, with recommendation
-  reasons and evidence summaries.
+  reasons, evidence summaries, and package source.
 - Cleanup completion summary with report and report-folder shortcuts.
 - Local operation history for archive and restore actions.
 - Archive and restore skills through a recoverable local archive.
@@ -56,21 +58,24 @@ Project-level skills are out of scope for the first release.
 1. Open the app and click **Rescan** to read the global skill folders and local
    session history.
 2. Review the sidebar counts for unused skills, archive suggestions, agents, and
-   skill collections.
+   packages.
 3. Sort the list by recent use, usage count, context tokens, or name.
-4. Search by skill name or description when you want to inspect a specific tool.
-5. Use **Finder** to open the skill folder, or **Archive** to move a stale skill
+4. Open a package in the sidebar to see the installed family, unused count, total
+   usage, context tokens, and source URL.
+5. Search by skill name, description, agent, or package when you want to inspect
+   a specific tool.
+6. Use **Finder** to open the skill folder, or **Archive** to move a stale skill
    into the recoverable local archive.
-6. Use **Protect** for skills that should never be included in cleanup, or
+7. Use **Protect** for skills that should never be included in cleanup, or
    **Review** for skills you want to inspect later.
-7. Open **Cleanup Plan** to select the suggested cleanup set, export a report,
+8. Open **Cleanup Plan** to select the suggested cleanup set, export a report,
    and batch archive the selected skills. After cleanup, the app opens
    **History** and shows the saved report location.
-8. Open **Scan Diagnostics** to verify scanned roots, session roots, log counts,
+9. Open **Scan Diagnostics** to verify scanned roots, session roots, log counts,
    and usage evidence coverage.
-9. Open **History** to review local archive and restore operations.
-10. Open **Archived** when you need to restore a skill.
-11. Use **Check for Updates** to open the latest GitHub Release when a newer
+10. Open **History** to review local archive and restore operations.
+11. Open **Archived** when you need to restore a skill.
+12. Use **Check for Updates** to open the latest GitHub Release when a newer
    build is available.
 
 ## What The App Counts
@@ -84,8 +89,9 @@ Project-level skills are out of scope for the first release.
 - **Recommendation reason**: the local rule that explains the current cleanup
   state.
 - **Suggested archive**: skills with no recent usage evidence.
-- **Collections**: grouped skill families inferred from skill names and install
-  structure.
+- **Packages**: installed families from `~/.agents/.skill-lock.json`, with
+  name-based grouping used as a fallback for multi-skill families without lock
+  metadata.
 
 Everything runs locally. The app does not need network access to scan your
 skills or session history.
@@ -110,7 +116,7 @@ skills or session history.
 
 ## Install From GitHub Release
 
-1. Download `SkillManager-v0.3.0-macos.zip` from the
+1. Download `SkillManager-v0.4.0-macos.zip` from the
    [latest release](https://github.com/Ryan-yang125/skill-manager/releases/latest).
 2. Unzip it.
 3. Open `SkillManager.app`.

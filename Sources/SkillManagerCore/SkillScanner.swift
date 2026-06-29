@@ -3,10 +3,16 @@ import Foundation
 public final class SkillScanner: @unchecked Sendable {
     private let fileManager: FileManager
     private let homeURL: URL
+    private let packageStore: SkillPackageStore
 
-    public init(fileManager: FileManager = .default, homeURL: URL = FileManager.default.homeDirectoryForCurrentUser) {
+    public init(
+        fileManager: FileManager = .default,
+        homeURL: URL = FileManager.default.homeDirectoryForCurrentUser,
+        packageStore: SkillPackageStore? = nil
+    ) {
         self.fileManager = fileManager
         self.homeURL = homeURL
+        self.packageStore = packageStore ?? SkillPackageStore(fileManager: fileManager, homeURL: homeURL)
     }
 
     public func defaultRoots() -> [SkillRoot] {
@@ -20,8 +26,9 @@ public final class SkillScanner: @unchecked Sendable {
     }
 
     public func scan(roots: [SkillRoot], usage: [String: UsageHit], now: Date = Date()) -> [SkillRecord] {
-        roots.flatMap { root in
-            scan(root: root, usage: usage, now: now)
+        let packages = packageStore.metadataBySkillName()
+        return roots.flatMap { root in
+            scan(root: root, usage: usage, packages: packages, now: now)
         }
         .uniquedByPath()
         .sorted { lhs, rhs in
@@ -29,7 +36,12 @@ public final class SkillScanner: @unchecked Sendable {
         }
     }
 
-    private func scan(root: SkillRoot, usage: [String: UsageHit], now: Date) -> [SkillRecord] {
+    private func scan(
+        root: SkillRoot,
+        usage: [String: UsageHit],
+        packages: [String: SkillPackageMetadata],
+        now: Date
+    ) -> [SkillRecord] {
         guard fileManager.fileExists(atPath: root.url.path),
               let children = try? fileManager.contentsOfDirectory(
                 at: root.url,
@@ -57,6 +69,7 @@ public final class SkillScanner: @unchecked Sendable {
                 now: now
             )
             let relative = child.path.replacingOccurrences(of: root.url.path, with: "").trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            let package = packageMetadata(for: parsed.name, folderURL: child, packages: packages)
             return SkillRecord(
                 id: stableID(for: child),
                 name: parsed.name,
@@ -72,6 +85,7 @@ public final class SkillScanner: @unchecked Sendable {
                 lastUsedAt: hit.lastUsedAt,
                 usageCount: hit.count,
                 usageEvidence: hit.evidence,
+                package: package,
                 recommendation: recommendation,
                 isArchived: false
             )
@@ -171,6 +185,24 @@ public final class SkillScanner: @unchecked Sendable {
         if path.contains("/.codex/") { return .codex }
         if path.contains("/.claude/") { return .claude }
         return fallback
+    }
+
+    private func packageMetadata(
+        for skillName: String,
+        folderURL: URL,
+        packages: [String: SkillPackageMetadata]
+    ) -> SkillPackageMetadata? {
+        let keys = [
+            skillName,
+            folderURL.lastPathComponent
+        ].map(SkillPackageStore.normalizedSkillKey)
+
+        for key in keys {
+            if let package = packages[key] {
+                return package
+            }
+        }
+        return nil
     }
 
     private func stableID(for url: URL) -> String {
