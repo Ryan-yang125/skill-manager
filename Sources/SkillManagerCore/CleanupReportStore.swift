@@ -10,8 +10,12 @@ public struct CleanupSkillSnapshot: Codable, Hashable, Sendable {
     public var usageCount: Int
     public var tokenEstimate: Int
     public var sizeBytes: Int64
+    public var recommendationReason: String
+    public var evidenceCount: Int
+    public var latestEvidenceKind: UsageEvidenceKind?
+    public var latestEvidencePath: String?
 
-    public init(skill: SkillRecord) {
+    public init(skill: SkillRecord, decision: SkillUserDecision?, now: Date = Date()) {
         self.id = skill.id
         self.name = skill.name
         self.title = skill.title
@@ -21,6 +25,25 @@ public struct CleanupSkillSnapshot: Codable, Hashable, Sendable {
         self.usageCount = skill.usageCount
         self.tokenEstimate = skill.tokenEstimate
         self.sizeBytes = skill.sizeBytes
+        self.recommendationReason = Self.reasonText(for: skill, decision: decision, now: now)
+        self.evidenceCount = skill.usageEvidence.count
+        self.latestEvidenceKind = skill.usageEvidence.first?.kind
+        self.latestEvidencePath = skill.usageEvidence.first?.sessionPath
+    }
+
+    private static func reasonText(for skill: SkillRecord, decision: SkillUserDecision?, now: Date) -> String {
+        if decision == .protected { return "Protected locally" }
+        if decision == .review { return "Marked for review" }
+        if skill.usageCount == 0 { return "No local usage evidence" }
+
+        if let lastUsedAt = skill.lastUsedAt {
+            let days = Int(max(0, now.timeIntervalSince(lastUsedAt)) / 86_400)
+            if days >= 90 { return "Unused for 90+ days" }
+            if days >= 30 { return "Unused for 30+ days" }
+        }
+
+        if skill.tokenEstimate >= 2_000 { return "High context estimate" }
+        return "Recent local evidence"
     }
 }
 
@@ -49,7 +72,13 @@ public struct CleanupPlanReport: Codable, Hashable, Sendable {
         self.archivedCount = inventory.archived.count
         self.protectedExcludedCount = inventory.archiveCandidates.filter { decisions[$0.id]?.decision == .protected }.count
         self.reviewExcludedCount = inventory.archiveCandidates.filter { decisions[$0.id]?.decision == .review }.count
-        self.skills = skills.map(CleanupSkillSnapshot.init(skill:))
+        self.skills = skills.map {
+            CleanupSkillSnapshot(
+                skill: $0,
+                decision: decisions[$0.id]?.decision,
+                now: generatedAt
+            )
+        }
     }
 }
 
@@ -114,10 +143,11 @@ public final class CleanupReportStore: @unchecked Sendable {
         lines.append("- Protected skills excluded: \(report.protectedExcludedCount)")
         lines.append("- Review skills excluded: \(report.reviewExcludedCount)")
         lines.append("")
-        lines.append("| Skill | Agent | Last used | Uses | Context | Path |")
-        lines.append("| --- | --- | --- | ---: | ---: | --- |")
+        lines.append("| Skill | Agent | Reason | Evidence | Last used | Uses | Context | Path |")
+        lines.append("| --- | --- | --- | ---: | --- | ---: | ---: | --- |")
         for skill in report.skills {
-            lines.append("| \(escape(skill.title)) | \(escape(skill.agent.rawValue)) | \(escape(SkillFormatting.relativeDate(skill.lastUsedAt, now: report.generatedAt))) | \(skill.usageCount) | \(escape(SkillFormatting.contextTokens(skill.tokenEstimate))) | `\(escape(skill.path))` |")
+            let evidenceSummary = skill.latestEvidenceKind.map { "\($0.label) · \(skill.evidenceCount)" } ?? "No evidence · \(skill.evidenceCount)"
+            lines.append("| \(escape(skill.title)) | \(escape(skill.agent.rawValue)) | \(escape(skill.recommendationReason)) | \(escape(evidenceSummary)) | \(escape(SkillFormatting.relativeDate(skill.lastUsedAt, now: report.generatedAt))) | \(skill.usageCount) | \(escape(SkillFormatting.contextTokens(skill.tokenEstimate))) | `\(escape(skill.path))` |")
         }
         lines.append("")
         lines.append("Archive is recoverable from the Skill Manager archive manifest.")

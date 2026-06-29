@@ -27,17 +27,23 @@ Project-level skills are out of scope for the first release.
 
 ## Features
 
-- Native macOS sidebar layout.
+- Craft-inspired native macOS sidebar and light list layout.
 - Local-only scan, with no network dependency for inventory.
 - Usage evidence from Claude `Skill` tool calls and Codex tool calls that read
   `SKILL.md`.
+- Evidence inspector showing matched session file, agent, match type, and time.
+- Recommendation reasons for each skill, including unused, stale, protected,
+  review, high-context, and recently evidenced states.
+- Scan Diagnostics view for global skill roots, session roots, log counts, and
+  total evidence hits.
 - Sort by recent use, usage count, context tokens, or name.
 - Filter by all, unused, suggested archive, archived, agent, and collection.
 - Cleanup Plan view with selectable archive candidates.
 - Protect important skills so cleanup suggestions and batch archive skip them.
 - Mark uncertain skills for review and inspect them in a dedicated review queue.
 - Detail inspector with path, usage, context cost, source, and quick actions.
-- Markdown and JSON cleanup reports before batch archive.
+- Markdown and JSON cleanup reports before batch archive, with recommendation
+  reasons and evidence summaries.
 - Cleanup completion summary with report and report-folder shortcuts.
 - Local operation history for archive and restore actions.
 - Archive and restore skills through a recoverable local archive.
@@ -60,9 +66,11 @@ Project-level skills are out of scope for the first release.
 7. Open **Cleanup Plan** to select the suggested cleanup set, export a report,
    and batch archive the selected skills. After cleanup, the app opens
    **History** and shows the saved report location.
-8. Open **History** to review local archive and restore operations.
-9. Open **Archived** when you need to restore a skill.
-10. Use **Check for Updates** to open the latest GitHub Release when a newer
+8. Open **Scan Diagnostics** to verify scanned roots, session roots, log counts,
+   and usage evidence coverage.
+9. Open **History** to review local archive and restore operations.
+10. Open **Archived** when you need to restore a skill.
+11. Use **Check for Updates** to open the latest GitHub Release when a newer
    build is available.
 
 ## What The App Counts
@@ -72,6 +80,9 @@ Project-level skills are out of scope for the first release.
   are the fields most likely to be injected into agent context.
 - **Last used / usage count**: evidence from local session logs, including Claude
   `Skill` tool calls and Codex tool calls that read `SKILL.md`.
+- **Evidence**: the local session file and match type behind a usage hit.
+- **Recommendation reason**: the local rule that explains the current cleanup
+  state.
 - **Suggested archive**: skills with no recent usage evidence.
 - **Collections**: grouped skill families inferred from skill names and install
   structure.
@@ -99,7 +110,7 @@ skills or session history.
 
 ## Install From GitHub Release
 
-1. Download `SkillManager-v0.2.0-macos.zip` from the
+1. Download `SkillManager-v0.3.0-macos.zip` from the
    [latest release](https://github.com/Ryan-yang125/skill-manager/releases/latest).
 2. Unzip it.
 3. Open `SkillManager.app`.

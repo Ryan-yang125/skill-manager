@@ -44,6 +44,10 @@ public final class InventoryService: @unchecked Sendable {
         inventory.auditReport(roots: scanner.defaultRoots(), generatedAt: generatedAt)
     }
 
+    public func sessionRootAudits() -> [UsageSessionRootAudit] {
+        usageAnalyzer.sessionRootAudits()
+    }
+
     public func operationHistory() -> [SkillOperationEntry] {
         historyStore.entries()
     }

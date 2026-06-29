@@ -12,6 +12,7 @@ final class AppModel: ObservableObject {
         case review = "待复查"
         case protected = "已保护"
         case cleanupPlan = "清理计划"
+        case diagnostics = "扫描诊断"
         case archived = "已归档"
         case history = "操作历史"
 
@@ -25,6 +26,7 @@ final class AppModel: ObservableObject {
             case .review: return "exclamationmark.circle"
             case .protected: return "shield"
             case .cleanupPlan: return "checklist"
+            case .diagnostics: return "waveform.path.ecg"
             case .archived: return "tray.full"
             case .history: return "clock.arrow.circlepath"
             }
@@ -88,6 +90,7 @@ final class AppModel: ObservableObject {
     @Published var confirmingArchiveSuggested = false
     @Published var confirmingArchiveCleanupPlan = false
     @Published var auditReport: InventoryAuditReport?
+    @Published var sessionRootAudits: [UsageSessionRootAudit] = []
     @Published var operationHistory: [SkillOperationEntry] = []
     @Published var skillDecisions: [String: SkillDecisionRecord] = [:]
     @Published var selectedCleanupSkillIDs: Set<String> = []
@@ -235,6 +238,8 @@ final class AppModel: ObservableObject {
             return "\(protectedSkills.count) protected · excluded from cleanup"
         case .section(.cleanupPlan):
             return "\(cleanupSelectedCount) selected · \(SkillFormatting.tokens(cleanupSelectedContextTokens)) context tokens"
+        case .section(.diagnostics):
+            return "\(usageEvidenceCount) evidence hits · \(sessionRootAudits.filter(\.exists).count) session roots"
         case .section(.archived):
             return "\(inventory.archived.count) archived"
         case .section(.history):
@@ -260,6 +265,14 @@ final class AppModel: ObservableObject {
         selectedFilter == .section(.history)
     }
 
+    var showingDiagnostics: Bool {
+        selectedFilter == .section(.diagnostics)
+    }
+
+    var usageEvidenceCount: Int {
+        inventory.active.reduce(0) { $0 + $1.usageEvidence.count }
+    }
+
     func count(for section: Section) -> Int {
         switch section {
         case .all: return inventory.active.count
@@ -268,6 +281,7 @@ final class AppModel: ObservableObject {
         case .review: return reviewSkills.count
         case .protected: return protectedSkills.count
         case .cleanupPlan: return cleanupCandidates.count
+        case .diagnostics: return auditReport?.roots.count ?? 0
         case .archived: return inventory.archived.count
         case .history: return operationHistory.count
         }
@@ -330,6 +344,7 @@ final class AppModel: ObservableObject {
 
             inventory = result
             auditReport = service.auditReport(for: result)
+            sessionRootAudits = service.sessionRootAudits()
             operationHistory = service.operationHistory()
             skillDecisions = service.skillDecisions()
             selectedCleanupSkillIDs = Set(cleanupCandidates.map { $0.id })
@@ -596,6 +611,10 @@ final class AppModel: ObservableObject {
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: archived.archivePath)])
     }
 
+    func revealEvidence(_ evidence: UsageEvidence) {
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: evidence.sessionPath)])
+    }
+
     func select(_ selection: SidebarSelection) {
         selectedFilter = selection
         selectedSkillID = filteredSkills.first?.id
@@ -615,6 +634,8 @@ final class AppModel: ObservableObject {
             return protectedSkills
         case .section(.cleanupPlan):
             return cleanupCandidates
+        case .section(.diagnostics):
+            return []
         case .section(.archived):
             return []
         case .section(.history):
@@ -657,6 +678,49 @@ final class AppModel: ObservableObject {
             case .name:
                 return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
             }
+        }
+    }
+
+    func recommendationReasons(for skill: SkillRecord) -> [SkillRecommendationReason] {
+        if decision(for: skill) == .protected { return [.protected] }
+        if decision(for: skill) == .review { return [.markedForReview] }
+        if skill.usageCount == 0 { return [.neverUsed] }
+
+        var reasons: [SkillRecommendationReason] = []
+        if let lastUsedAt = skill.lastUsedAt {
+            let days = Int(max(0, Date().timeIntervalSince(lastUsedAt)) / 86_400)
+            if days >= 90 {
+                reasons.append(.staleNinetyDays)
+            } else if days >= 30 {
+                reasons.append(.staleThirtyDays)
+            }
+        }
+
+        if skill.tokenEstimate >= 2_000 {
+            reasons.append(.highContext)
+        }
+
+        if reasons.isEmpty {
+            reasons.append(.recentEvidence)
+        }
+        return reasons
+    }
+
+    func recommendationReasonText(for skill: SkillRecord) -> String {
+        recommendationReasons(for: skill)
+            .map(reasonTitle)
+            .joined(separator: " · ")
+    }
+
+    func reasonTitle(_ reason: SkillRecommendationReason) -> String {
+        switch reason {
+        case .protected: return "已保护"
+        case .markedForReview: return "待复查"
+        case .neverUsed: return "未找到本地使用证据"
+        case .staleNinetyDays: return "90天以上未命中"
+        case .staleThirtyDays: return "30天以上未命中"
+        case .highContext: return "上下文占用高"
+        case .recentEvidence: return "近期有本地证据"
         }
     }
 

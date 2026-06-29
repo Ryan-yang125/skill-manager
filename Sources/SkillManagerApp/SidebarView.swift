@@ -130,6 +130,8 @@ struct SidebarView: View {
             return "跳过清理"
         case .cleanupPlan:
             return "先预览再清理"
+        case .diagnostics:
+            return "路径和证据"
         case .archived:
             return "可恢复"
         case .history:

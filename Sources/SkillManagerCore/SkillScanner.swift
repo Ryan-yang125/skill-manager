@@ -71,6 +71,7 @@ public final class SkillScanner: @unchecked Sendable {
                 tokenEstimate: tokenEstimate,
                 lastUsedAt: hit.lastUsedAt,
                 usageCount: hit.count,
+                usageEvidence: hit.evidence,
                 recommendation: recommendation,
                 isArchived: false
             )

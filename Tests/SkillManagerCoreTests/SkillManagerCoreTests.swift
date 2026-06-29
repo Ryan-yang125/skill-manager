@@ -74,16 +74,26 @@ final class SkillManagerCoreTests: XCTestCase {
         )
 
         let now = Date(timeIntervalSince1970: 2_000_000)
+        let evidence = UsageEvidence(
+            id: "evidence-1",
+            skillName: "ai-promo-video-kit",
+            agent: .codex,
+            kind: .codexSkillRead,
+            sessionPath: tempRoot.appendingPathComponent(".codex/sessions/run.jsonl").path,
+            occurredAt: now,
+            detail: "Codex read"
+        )
         let scanner = SkillScanner(homeURL: tempRoot)
         let records = scanner.scan(
             roots: [SkillRoot(url: root, agent: .codex, scope: .user)],
-            usage: ["ai-promo-video-kit": UsageHit(count: 3, lastUsedAt: now)],
+            usage: ["ai-promo-video-kit": UsageHit(count: 3, lastUsedAt: now, evidence: [evidence])],
             now: now
         )
 
         XCTAssertEqual(records.count, 1)
         XCTAssertEqual(records[0].agent, .codex)
         XCTAssertEqual(records[0].usageCount, 3)
+        XCTAssertEqual(records[0].usageEvidence.first?.kind, .codexSkillRead)
         XCTAssertEqual(records[0].recommendation, .keep)
     }
 
@@ -132,6 +142,9 @@ final class SkillManagerCoreTests: XCTestCase {
 
         XCTAssertEqual(usage["agent-skills-sop"]?.count, 1)
         XCTAssertNotNil(usage["agent-skills-sop"]?.lastUsedAt)
+        XCTAssertEqual(usage["agent-skills-sop"]?.evidence.first?.kind, .codexSkillRead)
+        XCTAssertEqual(usage["agent-skills-sop"]?.evidence.first?.agent, .codex)
+        XCTAssertEqual(usage["agent-skills-sop"]?.evidence.first?.sessionPath, session.path)
     }
 
     func testUsageAnalyzerIgnoresAvailableSkillListInCodexContext() throws {
@@ -221,6 +234,27 @@ final class SkillManagerCoreTests: XCTestCase {
 
         XCTAssertEqual(usage["ai-promo-video-kit"]?.count, 1)
         XCTAssertNotNil(usage["ai-promo-video-kit"]?.lastUsedAt)
+        XCTAssertEqual(usage["ai-promo-video-kit"]?.evidence.first?.kind, .claudeSkillTool)
+        XCTAssertEqual(usage["ai-promo-video-kit"]?.evidence.first?.agent, .claude)
+        XCTAssertEqual(usage["ai-promo-video-kit"]?.evidence.first?.sessionPath, session.path)
+    }
+
+    func testUsageAnalyzerReportsSessionRootDiagnostics() throws {
+        let codexRoot = tempRoot.appendingPathComponent(".codex/sessions/2026/06/29", isDirectory: true)
+        let claudeRoot = tempRoot.appendingPathComponent(".claude/projects/local-project", isDirectory: true)
+        try FileManager.default.createDirectory(at: codexRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: claudeRoot, withIntermediateDirectories: true)
+        try "{}".write(to: codexRoot.appendingPathComponent("codex.jsonl"), atomically: true, encoding: .utf8)
+        try "{}".write(to: claudeRoot.appendingPathComponent("claude.jsonl"), atomically: true, encoding: .utf8)
+
+        let audits = UsageAnalyzer(homeURL: tempRoot).sessionRootAudits()
+        let codex = try XCTUnwrap(audits.first { $0.path.hasSuffix(".codex/sessions") })
+        let claude = try XCTUnwrap(audits.first { $0.path.hasSuffix(".claude/projects") })
+
+        XCTAssertTrue(codex.exists)
+        XCTAssertEqual(codex.logCount, 1)
+        XCTAssertTrue(claude.exists)
+        XCTAssertEqual(claude.logCount, 1)
     }
 
     func testArchiveAndRestoreSkillFolder() throws {
@@ -445,12 +479,16 @@ final class SkillManagerCoreTests: XCTestCase {
         XCTAssertTrue(markdown.contains("# Skill Manager Cleanup Plan"))
         XCTAssertTrue(markdown.contains("Report Helper"))
         XCTAssertTrue(markdown.contains("14 tokens"))
+        XCTAssertTrue(markdown.contains("No local usage evidence"))
+        XCTAssertTrue(markdown.contains("No evidence"))
 
         let data = try Data(contentsOf: export.jsonURL)
         let report = try JSONDecoder.skillManagerStore.decode(CleanupPlanReport.self, from: data)
         XCTAssertEqual(report.selectedCount, 1)
         XCTAssertEqual(report.selectedContextTokens, 14)
         XCTAssertEqual(report.skills.first?.name, "report-helper")
+        XCTAssertEqual(report.skills.first?.recommendationReason, "No local usage evidence")
+        XCTAssertEqual(report.skills.first?.evidenceCount, 0)
 
         let secondExport = try store.export(
             inventory: inventory,

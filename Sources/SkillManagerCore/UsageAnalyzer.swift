@@ -6,6 +6,13 @@ public final class UsageAnalyzer: @unchecked Sendable {
     private let maxLogBytes: UInt64
     private let maxLogFiles: Int
 
+    private struct UsageSearchText {
+        var text: String
+        var kind: UsageEvidenceKind
+        var agent: SkillAgent
+        var detail: String
+    }
+
     public init(
         fileManager: FileManager = .default,
         homeURL: URL = FileManager.default.homeDirectoryForCurrentUser,
@@ -51,11 +58,18 @@ public final class UsageAnalyzer: @unchecked Sendable {
         var hits: [String: UsageHit] = [:]
         for logURL in sessionLogURLs() {
             let modifiedAt = (try? logURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
-            for (original, count) in matchedSkillNames(in: logURL, terms: terms, byteTerms: byteTerms) {
+            for (original, evidence) in matchedSkillEvidence(in: logURL, terms: terms, byteTerms: byteTerms, modifiedAt: modifiedAt) {
                 var hit = hits[original] ?? UsageHit()
-                hit.count += count
+                hit.count += evidence.count
                 if hit.lastUsedAt == nil || modifiedAt > (hit.lastUsedAt ?? Date.distantPast) {
                     hit.lastUsedAt = modifiedAt
+                }
+                hit.evidence.append(contentsOf: evidence)
+                hit.evidence.sort {
+                    ($0.occurredAt ?? .distantPast) > ($1.occurredAt ?? .distantPast)
+                }
+                if hit.evidence.count > 20 {
+                    hit.evidence = Array(hit.evidence.prefix(20))
                 }
                 hits[original] = hit
             }
@@ -63,20 +77,25 @@ public final class UsageAnalyzer: @unchecked Sendable {
         return hits
     }
 
-    private func matchedSkillNames(
+    private func matchedSkillEvidence(
         in logURL: URL,
         terms: [String: [String]],
-        byteTerms: [String: [Data]]
-    ) -> [String: Int] {
+        byteTerms: [String: [Data]],
+        modifiedAt: Date
+    ) -> [String: [UsageEvidence]] {
         guard let data = try? Data(contentsOf: logURL, options: [.mappedIfSafe]), !data.isEmpty else {
             return [:]
         }
 
-        var result: [String: Int] = [:]
-        for rawLine in data.split(separator: 10, omittingEmptySubsequences: true) {
+        var result: [String: [UsageEvidence]] = [:]
+        for (lineIndex, rawLine) in data.split(separator: 10, omittingEmptySubsequences: true).enumerated() {
             let line = Data(rawLine)
             guard line.containsASCII("\"name\":\"Skill\"") ||
                     line.containsASCII("\"name\": \"Skill\"") ||
+                    line.containsASCII("\"name\":\"loadSkill\"") ||
+                    line.containsASCII("\"name\": \"loadSkill\"") ||
+                    line.containsASCII("\"name\":\"load_skill\"") ||
+                    line.containsASCII("\"name\": \"load_skill\"") ||
                     line.containsASCII("SKILL.md") ||
                     line.containsASCII("/skills/") else {
                 continue
@@ -85,26 +104,52 @@ public final class UsageAnalyzer: @unchecked Sendable {
                 continue
             }
 
-            var lineMatches: Set<String> = []
+            var lineMatches: [String: UsageEvidence] = [:]
 
             if let skillName = findSkillToolUse(in: object),
                let original = originalName(for: skillName, terms: terms) {
-                lineMatches.insert(original)
+                let isClaude = logURL.path.contains("/.claude/projects/")
+                let kind: UsageEvidenceKind = isClaude ? .claudeSkillTool : .codexDirectLoad
+                lineMatches[original] = usageEvidence(
+                    original: original,
+                    logURL: logURL,
+                    lineIndex: lineIndex,
+                    kind: kind,
+                    agent: isClaude ? .claude : .codex,
+                    modifiedAt: modifiedAt,
+                    detail: kind.label
+                )
             }
 
-            for searchText in codexToolSearchTexts(from: object) {
-                if !searchText.contains("/") && !searchText.contains("SKILL.md"),
-                   let original = originalName(for: searchText, terms: terms) {
-                    lineMatches.insert(original)
+            for event in codexToolSearchTexts(from: object) {
+                if !event.text.contains("/") && !event.text.contains("SKILL.md"),
+                   let original = originalName(for: event.text, terms: terms) {
+                    lineMatches[original] = usageEvidence(
+                        original: original,
+                        logURL: logURL,
+                        lineIndex: lineIndex,
+                        kind: event.kind,
+                        agent: event.agent,
+                        modifiedAt: modifiedAt,
+                        detail: event.detail
+                    )
                     continue
                 }
-                guard searchText.contains("SKILL.md") || searchText.contains("/skills/") else {
+                guard event.text.contains("SKILL.md") || event.text.contains("/skills/") else {
                     continue
                 }
-                let searchData = Data(searchText.utf8)
+                let searchData = Data(event.text.utf8)
                 for (original, variants) in byteTerms {
                     if variants.contains(where: { searchData.range(of: $0) != nil }) {
-                        lineMatches.insert(original)
+                        lineMatches[original] = usageEvidence(
+                            original: original,
+                            logURL: logURL,
+                            lineIndex: lineIndex,
+                            kind: event.kind,
+                            agent: event.agent,
+                            modifiedAt: modifiedAt,
+                            detail: event.detail
+                        )
                     }
                 }
             }
@@ -112,12 +157,34 @@ public final class UsageAnalyzer: @unchecked Sendable {
             guard !lineMatches.isEmpty else {
                 continue
             }
-            for original in lineMatches {
-                result[original, default: 0] += 1
+            for (original, evidence) in lineMatches {
+                result[original, default: []].append(evidence)
             }
         }
 
         return result
+    }
+
+    private func usageEvidence(
+        original: String,
+        logURL: URL,
+        lineIndex: Int,
+        kind: UsageEvidenceKind,
+        agent: SkillAgent,
+        modifiedAt: Date,
+        detail: String
+    ) -> UsageEvidence {
+        let idSource = "\(original)|\(logURL.path)|\(lineIndex)|\(kind.rawValue)"
+        let id = idSource.data(using: .utf8)?.base64EncodedString() ?? idSource
+        return UsageEvidence(
+            id: id,
+            skillName: original,
+            agent: agent,
+            kind: kind,
+            sessionPath: logURL.standardizedFileURL.path,
+            occurredAt: modifiedAt,
+            detail: detail
+        )
     }
 
     private func findSkillToolUse(in value: Any) -> String? {
@@ -147,7 +214,7 @@ public final class UsageAnalyzer: @unchecked Sendable {
         return nil
     }
 
-    private func codexToolSearchTexts(from value: Any) -> [String] {
+    private func codexToolSearchTexts(from value: Any) -> [UsageSearchText] {
         guard let dictionary = value as? [String: Any],
               dictionary["type"] as? String == "response_item",
               let payload = dictionary["payload"] as? [String: Any],
@@ -159,18 +226,22 @@ public final class UsageAnalyzer: @unchecked Sendable {
         case "function_call":
             let name = payload["name"] as? String ?? ""
             if isDirectSkillToolName(name), let skillName = skillNameFromToolPayload(payload) {
-                return [skillName]
+                return [UsageSearchText(text: skillName, kind: .codexDirectLoad, agent: .codex, detail: "Codex \(name)")]
             }
             guard isSearchableToolCallName(name) else { return [] }
-            return stringValues(in: payload, keys: ["arguments", "input"])
+            return stringValues(in: payload, keys: ["arguments", "input"]).map {
+                UsageSearchText(text: $0, kind: .codexSkillRead, agent: .codex, detail: "Codex \(name) read")
+            }
 
         case "custom_tool_call":
             let name = payload["name"] as? String ?? ""
             if isDirectSkillToolName(name), let skillName = skillNameFromToolPayload(payload) {
-                return [skillName]
+                return [UsageSearchText(text: skillName, kind: .codexDirectLoad, agent: .codex, detail: "Codex \(name)")]
             }
             guard isSearchableToolCallName(name) else { return [] }
-            return stringValues(in: payload, keys: ["arguments", "input"])
+            return stringValues(in: payload, keys: ["arguments", "input"]).map {
+                UsageSearchText(text: $0, kind: .codexSkillRead, agent: .codex, detail: "Codex \(name) read")
+            }
 
         default:
             return []
@@ -259,6 +330,26 @@ public final class UsageAnalyzer: @unchecked Sendable {
             let rDate = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
             return lDate > rDate
         }.prefix(maxLogFiles))
+    }
+
+    public func sessionRootAudits() -> [UsageSessionRootAudit] {
+        let logs = sessionLogURLs()
+        let roots: [(URL, SkillAgent)] = [
+            (homeURL.appendingPathComponent(".codex/sessions"), .codex),
+            (homeURL.appendingPathComponent(".codex/archived_sessions"), .codex),
+            (homeURL.appendingPathComponent(".claude/projects"), .claude)
+        ]
+
+        let standardizedLogs = logs.map { $0.standardizedFileURL.path }
+        return roots.map { root, agent in
+            let standardizedRoot = root.standardizedFileURL.path
+            return UsageSessionRootAudit(
+                path: standardizedRoot,
+                agent: agent,
+                exists: fileManager.fileExists(atPath: standardizedRoot),
+                logCount: standardizedLogs.filter { $0.hasPrefix(standardizedRoot) }.count
+            )
+        }
     }
 
     private func codexRecentSessionLogs(days: Int) -> [URL] {

@@ -21,6 +21,58 @@ public enum SkillRecommendation: String, Codable, Sendable {
     case archive
 }
 
+public enum UsageEvidenceKind: String, Codable, Hashable, Sendable {
+    case codexSkillRead
+    case codexDirectLoad
+    case claudeSkillTool
+
+    public var label: String {
+        switch self {
+        case .codexSkillRead: return "Codex read SKILL.md"
+        case .codexDirectLoad: return "Codex loadSkill"
+        case .claudeSkillTool: return "Claude Skill tool"
+        }
+    }
+}
+
+public struct UsageEvidence: Identifiable, Codable, Hashable, Sendable {
+    public var id: String
+    public var skillName: String
+    public var agent: SkillAgent
+    public var kind: UsageEvidenceKind
+    public var sessionPath: String
+    public var occurredAt: Date?
+    public var detail: String
+
+    public init(
+        id: String,
+        skillName: String,
+        agent: SkillAgent,
+        kind: UsageEvidenceKind,
+        sessionPath: String,
+        occurredAt: Date?,
+        detail: String
+    ) {
+        self.id = id
+        self.skillName = skillName
+        self.agent = agent
+        self.kind = kind
+        self.sessionPath = sessionPath
+        self.occurredAt = occurredAt
+        self.detail = detail
+    }
+}
+
+public enum SkillRecommendationReason: String, Codable, Hashable, Sendable {
+    case protected
+    case markedForReview
+    case neverUsed
+    case staleNinetyDays
+    case staleThirtyDays
+    case highContext
+    case recentEvidence
+}
+
 public struct SkillRecord: Identifiable, Codable, Hashable, Sendable {
     public var id: String
     public var name: String
@@ -35,6 +87,7 @@ public struct SkillRecord: Identifiable, Codable, Hashable, Sendable {
     public var tokenEstimate: Int
     public var lastUsedAt: Date?
     public var usageCount: Int
+    public var usageEvidence: [UsageEvidence]
     public var recommendation: SkillRecommendation
     public var isArchived: Bool
 
@@ -52,6 +105,7 @@ public struct SkillRecord: Identifiable, Codable, Hashable, Sendable {
         tokenEstimate: Int,
         lastUsedAt: Date?,
         usageCount: Int,
+        usageEvidence: [UsageEvidence] = [],
         recommendation: SkillRecommendation,
         isArchived: Bool
     ) {
@@ -68,6 +122,7 @@ public struct SkillRecord: Identifiable, Codable, Hashable, Sendable {
         self.tokenEstimate = tokenEstimate
         self.lastUsedAt = lastUsedAt
         self.usageCount = usageCount
+        self.usageEvidence = usageEvidence
         self.recommendation = recommendation
         self.isArchived = isArchived
     }
@@ -151,9 +206,25 @@ public struct SkillRoot: Hashable, Sendable {
 public struct UsageHit: Hashable, Sendable {
     public var count: Int
     public var lastUsedAt: Date?
+    public var evidence: [UsageEvidence]
 
-    public init(count: Int = 0, lastUsedAt: Date? = nil) {
+    public init(count: Int = 0, lastUsedAt: Date? = nil, evidence: [UsageEvidence] = []) {
         self.count = count
         self.lastUsedAt = lastUsedAt
+        self.evidence = evidence
+    }
+}
+
+public struct UsageSessionRootAudit: Codable, Hashable, Sendable {
+    public var path: String
+    public var agent: SkillAgent
+    public var exists: Bool
+    public var logCount: Int
+
+    public init(path: String, agent: SkillAgent, exists: Bool, logCount: Int) {
+        self.path = path
+        self.agent = agent
+        self.exists = exists
+        self.logCount = logCount
     }
 }
