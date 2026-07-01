@@ -135,7 +135,7 @@ function verifyDebPackages({ debs }) {
   for (const file of debs) {
     const result = spawnSync("ar", ["-t", path.join(distDir, file)], { encoding: "utf8" });
     if (result.status !== 0) throw new Error(`deb structure check failed for ${file}:\n${result.stderr || result.stdout}`);
-    const debEntries = new Set(result.stdout.split(/\r?\n/).filter(Boolean));
+    const debEntries = new Set(result.stdout.split(/\r?\n/).filter(Boolean).map((entry) => entry.replace(/\/$/, "")));
     for (const entry of ["debian-binary", "control.tar.xz", "data.tar.xz"]) {
       if (!debEntries.has(entry)) throw new Error(`deb package ${file} is missing ${entry}`);
     }

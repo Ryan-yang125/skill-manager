@@ -659,12 +659,19 @@ The app is ready for public direct-download release when every line is checked:
 
 ## Publication Evidence Checklist
 
-Fill these after pushing the release tag and creating the draft GitHub Release:
+Completed for `v0.5.0`:
 
-- [ ] Release workflow passes on macOS, Windows, and Linux runners.
-- [ ] Windows and Linux packaged smoke checks pass in release workflow logs.
-- [ ] GitHub Release contains artifacts, checksums, screenshots, and release notes.
-- [ ] Public download links work after GitHub Release publication.
+- [x] Release workflow passes on macOS, Windows, and Linux runners.
+- [x] Windows and Linux release smoke checks pass in release workflow logs.
+- [x] GitHub Release contains artifacts, checksums, screenshots, and release notes.
+- [x] Public download links work after GitHub Release publication.
+
+Evidence:
+
+- Public release: https://github.com/Ryan-yang125/skill-manager/releases/tag/v0.5.0
+- CI run: https://github.com/Ryan-yang125/skill-manager/actions/runs/28542946154
+- Release run: https://github.com/Ryan-yang125/skill-manager/actions/runs/28542947776
+- Release evidence: `docs/releases/v0.5.0.md`
 
 ## Optional Hardening Backlog
 
