@@ -1,163 +1,136 @@
 # Skill Manager
 
-Skill Manager is a local-first macOS app for auditing, understanding, and
-cleaning global agent skills.
+Skill Manager is a local-first desktop app for browsing, understanding, and managing agent skills installed on your machine.
 
-It scans global skill folders, estimates the context cost of each skill from its
-`name` and `description`, checks local session logs for usage evidence, and lets
-you inspect packages, archive unused skills, and restore them when needed.
+It scans global skill folders, renders each `SKILL.md`, groups skills by package/source, estimates context cost, finds local usage evidence, and gives you safe archive and restore workflows.
 
-![Skill Manager main window](docs/screenshots/main-window.png)
+![Skill Manager main window](docs/screenshots/electron-main.png)
 
-## Why
+## Supported Platforms
 
-Agent skills are easy to install and easy to forget. Over time they add context,
-make agent behavior harder to predict, and become hard to review by hand. Skill
-Manager gives them the same kind of local inventory view you expect from a Mac
-utility: what is installed, what it does, how much context it adds, when it was
-last used, and which skills are good cleanup candidates.
+- macOS
+- Windows
+- Linux
 
-## Supported Global Skill Roots
+## Supported Skill Roots
 
 - `~/.agents/skills`
 - `~/.codex/skills`
 - `~/.claude/skills`
 
-Project-level skills are out of scope for the first release.
+Project-level skill folders are outside the current release scope.
 
 ## Features
 
-- Craft-inspired native macOS sidebar and light list layout.
-- Local-only scan, with no network dependency for inventory.
-- Package-aware grouping from `~/.agents/.skill-lock.json`, including install
-  source, source URL, install time, update time, and lockfile `skillPath`.
-- Usage evidence from Claude `Skill` tool calls and Codex tool calls that read
-  `SKILL.md`.
-- Evidence inspector showing matched session file, agent, match type, and time.
-- Recommendation reasons for each skill, including unused, stale, protected,
-  review, high-context, and recently evidenced states.
-- Scan Diagnostics view for global skill roots, session roots, log counts, and
-  total evidence hits.
-- Sort by recent use, usage count, context tokens, or name.
-- Filter by all, unused, suggested archive, archived, agent, and package.
-- Cleanup Plan view with selectable archive candidates.
-- Protect important skills so cleanup suggestions and batch archive skip them.
-- Mark uncertain skills for review and inspect them in a dedicated review queue.
-- Detail inspector with package source, path, usage, context cost, and quick actions.
-- Markdown and JSON cleanup reports before batch archive, with recommendation
-  reasons, evidence summaries, and package source.
-- Cleanup completion summary with report and report-folder shortcuts.
-- Local operation history for archive and restore actions.
-- Archive and restore skills through a recoverable local archive.
-- Finder reveal for active and archived skills.
-- Menu bar status panel.
-- GitHub Release update check.
+- Installed skill library with sidebar filters.
+- Package grouping from `~/.agents/.skill-lock.json` plus local fallback grouping.
+- Search by name, package, description, source, and path.
+- Sort by latest added or usage count.
+- Rendered Markdown content view with frontmatter hidden.
+- Files tab with a compact file tree and preview.
+- Usage count, last used time, and local evidence from Codex and Claude session logs.
+- Archived Codex session coverage when local archived sessions exist.
+- Safe archive and restore with a durable local ledger.
+- Markdown and JSON cleanup reports.
+- English and Chinese UI.
+- Light and dark Mosaic themes.
+- Local-only inventory, archive, restore, and report export.
 
-## How To Use
+## Install
 
-1. Open the app and click **Rescan** to read the global skill folders and local
-   session history.
-2. Review the sidebar counts for unused skills, archive suggestions, agents, and
-   packages.
-3. Sort the list by recent use, usage count, context tokens, or name.
-4. Open a package in the sidebar to see the installed family, unused count, total
-   usage, context tokens, and source URL.
-5. Search by skill name, description, agent, or package when you want to inspect
-   a specific tool.
-6. Use **Finder** to open the skill folder, or **Archive** to move a stale skill
-   into the recoverable local archive.
-7. Use **Protect** for skills that should never be included in cleanup, or
-   **Review** for skills you want to inspect later.
-8. Open **Cleanup Plan** to select the suggested cleanup set, export a report,
-   and batch archive the selected skills. After cleanup, the app opens
-   **History** and shows the saved report location.
-9. Open **Scan Diagnostics** to verify scanned roots, session roots, log counts,
-   and usage evidence coverage.
-10. Open **History** to review local archive and restore operations.
-11. Open **Archived** when you need to restore a skill.
-12. Use **Check for Updates** to open the latest GitHub Release when a newer
-   build is available.
+Download the latest release for your platform from:
 
-## What The App Counts
+https://github.com/Ryan-yang125/skill-manager/releases/latest
 
-- **Installed**: skills found under the supported global roots.
-- **Context tokens**: an estimate from the skill `name` and `description`, which
-  are the fields most likely to be injected into agent context.
-- **Last used / usage count**: evidence from local session logs, including Claude
-  `Skill` tool calls and Codex tool calls that read `SKILL.md`.
-- **Evidence**: the local session file and match type behind a usage hit.
-- **Recommendation reason**: the local rule that explains the current cleanup
-  state.
-- **Suggested archive**: skills with no recent usage evidence.
-- **Packages**: installed families from `~/.agents/.skill-lock.json`, with
-  name-based grouping used as a fallback for multi-skill families without lock
-  metadata.
+Release files:
 
-Everything runs locally. The app does not need network access to scan your
-skills or session history.
+- macOS Apple Silicon: `SkillManager-0.5.0-arm64.dmg`
+- macOS zip: `SkillManager-0.5.0-mac-arm64.zip`
+- Windows: `SkillManager-0.5.0-x64.exe`
+- Linux AppImage: `SkillManager-0.5.0-x64.AppImage`
+- Linux deb: `SkillManager-0.5.0-x64.deb`
+- Checksums: `SHA256SUMS.txt`
 
-## Safety Model
+Verify a download:
 
-- **Archive is reversible**: archiving moves the skill folder into
-  `~/Library/Application Support/SkillManager/Archive` and records the original
-  path in a local manifest.
-- **Batch cleanup exports first**: Cleanup Plan writes both Markdown and JSON
-  reports into `~/Library/Application Support/SkillManager/Reports` before
-  moving selected skills.
-- **Protected and review skills are skipped**: local decisions live in
-  `~/Library/Application Support/SkillManager/skill-decisions.json`; protected
-  and review skills are excluded from Cleanup Plan.
-- **Restore checks destination**: restore moves the archived folder back to its
-  original path and fails if that destination already exists.
-- **Operation history is local**: archive and restore attempts are recorded in
-  `~/Library/Application Support/SkillManager/operation-history.json`.
-- **Inventory stays local**: scanning reads the supported global skill folders
-  and local session logs on this Mac.
+```bash
+shasum -a 256 SkillManager-0.5.0-arm64.dmg
+grep SkillManager-0.5.0-arm64.dmg SHA256SUMS.txt
+```
 
-## Install From GitHub Release
+macOS direct-download builds use ad-hoc signing. If Gatekeeper blocks first launch, right-click the app and choose Open.
 
-1. Download `SkillManager-v0.4.0-macos.zip` from the
-   [latest release](https://github.com/Ryan-yang125/skill-manager/releases/latest).
-2. Unzip it.
-3. Open `SkillManager.app`.
+Windows direct-download builds may show a SmartScreen prompt until code signing is configured. Verify `SHA256SUMS.txt` before launching.
 
-Current release builds are ad-hoc signed. Apple Developer ID signing and
-notarization are planned for a later distribution channel. If macOS blocks the
-first launch, right-click the app and choose **Open**.
+Linux users can run the AppImage or install the deb package.
 
 ## Build Locally
 
 ```bash
-swift test
-scripts/build_app.sh
-open build/SkillManager.app
+pnpm install
+pnpm lint
+pnpm test
+pnpm build
+pnpm package
 ```
 
-The app bundle is created at:
+The packaged output is written to:
 
 ```text
-build/SkillManager.app
+dist-electron/
 ```
 
 ## Development
 
-```bash
-swift run SkillManagerScan
-swift run SkillManagerScan --json
-script/build_and_run.sh --verify
-```
-
-Regenerate the app icon:
+Run the renderer only:
 
 ```bash
-swift scripts/generate_app_icon.swift
+pnpm frontend
 ```
 
-The Codex desktop Run action is wired through:
+Run the desktop app:
 
-```text
-.codex/environments/environment.toml
+```bash
+pnpm dev
 ```
+
+Run release gates:
+
+```bash
+pnpm release:local
+```
+
+## Safety Model
+
+- Skill scans read only the supported local roots and local session logs.
+- Archive writes a ledger before moving a skill folder.
+- Restore refuses to overwrite an existing original path.
+- Reports are written to the app data directory.
+- The renderer cannot access Node APIs directly.
+- Filesystem operations run through typed IPC in the Electron main process.
+- External links are limited to HTTPS package URLs.
+
+## Local Data
+
+Skill Manager stores app data under the platform-specific Electron `userData` directory.
+
+Typical files:
+
+- `archive-ledger.json`
+- `skill-decisions.json`
+- `cleanup-reports/`
+
+See [docs/privacy.md](docs/privacy.md) for the privacy model.
+
+## Documentation
+
+- [Product context](PRODUCT.md)
+- [Design system](DESIGN.md)
+- [Architecture](docs/architecture.md)
+- [Testing](docs/testing.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Release runbook](docs/release-runbook.md)
+- [Security policy](SECURITY.md)
 
 ## License
 

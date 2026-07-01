@@ -1,0 +1,1034 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skill Manager v0.5 Lucide prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+      --font-mark: "Gaegu", "Comic Sans MS", cursive;
+      --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+      --ease: cubic-bezier(.16, 1, .3, 1);
+      --radius-window: 26px;
+      --radius-control: 999px;
+      --radius-row: 15px;
+      --accent-light: oklch(0.27 0.006 248);
+      --accent-dark: oklch(0.92 0.006 248);
+      --sky-light: oklch(0.935 0.045 232);
+      --peach-light: oklch(0.928 0.05 58);
+      --mint-light: oklch(0.915 0.045 151);
+      --lilac-light: oklch(0.92 0.047 304);
+      --sky-dark: oklch(0.31 0.055 232);
+      --peach-dark: oklch(0.35 0.055 58);
+      --mint-dark: oklch(0.32 0.05 151);
+      --lilac-dark: oklch(0.32 0.052 304);
+      --warn-light: oklch(0.61 0.11 67);
+      --warn-dark: oklch(0.76 0.09 67);
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: var(--font-ui);
+      background: var(--desk);
+      color: var(--ink);
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: 26px;
+    }
+
+    body[data-theme="light"] {
+      --desk: oklch(0.94 0.006 72);
+      --window: oklch(0.99 0.003 72);
+      --sidebar: oklch(0.962 0.006 72);
+      --pane: oklch(0.976 0.004 72);
+      --detail: oklch(0.992 0.002 72);
+      --raised: oklch(0.984 0.003 72);
+      --hover: oklch(0.95 0.008 72);
+      --selected: var(--peach-light);
+      --selected-line: oklch(0.82 0.045 58);
+      --line: oklch(0.86 0.008 72);
+      --hairline: oklch(0.9 0.006 72);
+      --ink: oklch(0.19 0.005 72);
+      --subtle: oklch(0.47 0.008 72);
+      --faint: oklch(0.62 0.007 72);
+      --accent: var(--accent-light);
+      --warn: var(--warn-light);
+      --code-bg: oklch(0.974 0.005 72);
+      --code-ink: oklch(0.23 0.008 72);
+      --shadow: 0 24px 64px oklch(0.23 0.01 72 / .12), 0 0 0 1px oklch(0.36 0.008 72 / .1);
+      --soft-shadow: 0 16px 42px oklch(0.23 0.01 72 / .06);
+      --toggle-bg: var(--lilac-light);
+      --package-tint: var(--sky-light);
+      --source-tint: var(--mint-light);
+      --review-tint: var(--lilac-light);
+      --action-tint: var(--peach-light);
+    }
+
+    body[data-theme="dark"] {
+      --desk: oklch(0.18 0.006 72);
+      --window: oklch(0.145 0.004 72);
+      --sidebar: oklch(0.17 0.005 72);
+      --pane: oklch(0.18 0.005 72);
+      --detail: oklch(0.13 0.004 72);
+      --raised: oklch(0.205 0.006 72);
+      --hover: oklch(0.23 0.006 72);
+      --selected: var(--peach-dark);
+      --selected-line: oklch(0.57 0.06 58);
+      --line: oklch(0.28 0.006 72);
+      --hairline: oklch(0.24 0.005 72);
+      --ink: oklch(0.92 0.004 72);
+      --subtle: oklch(0.71 0.006 72);
+      --faint: oklch(0.55 0.006 72);
+      --accent: var(--accent-dark);
+      --warn: var(--warn-dark);
+      --code-bg: oklch(0.17 0.005 72);
+      --code-ink: oklch(0.86 0.006 72);
+      --shadow: 0 28px 72px oklch(0.06 0.004 72 / .42), 0 0 0 1px oklch(0.72 0.006 72 / .1);
+      --soft-shadow: none;
+      --toggle-bg: var(--lilac-dark);
+      --package-tint: var(--sky-dark);
+      --source-tint: var(--mint-dark);
+      --review-tint: var(--lilac-dark);
+      --action-tint: var(--peach-dark);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    svg,
+    [data-lucide] {
+      display: block;
+      width: 17px;
+      height: 17px;
+      stroke-width: 2;
+    }
+
+    .prototype {
+      width: 1388px;
+      height: 884px;
+      overflow: hidden;
+      border-radius: var(--radius-window);
+      background: var(--window);
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-columns: 234px 354px minmax(0, 1fr);
+    }
+
+    .sidebar,
+    .browser,
+    .detail {
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .sidebar {
+      background: var(--sidebar);
+      border-right: 1px solid var(--line);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    .traffic {
+      display: flex;
+      gap: 8px;
+      padding: 18px 20px 14px;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .dot.red { background: oklch(0.68 0.19 28); }
+    .dot.yellow { background: oklch(0.79 0.14 78); }
+    .dot.green { background: oklch(0.72 0.16 148); }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 18px 18px;
+      font-size: 22px;
+      font-weight: 720;
+      letter-spacing: 0;
+    }
+
+    .brand-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      color: var(--ink);
+      background: var(--package-tint);
+      box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .brand-name {
+      font-family: var(--font-mark);
+      line-height: 1;
+    }
+
+    .nav {
+      overflow: hidden;
+      padding: 4px 12px 16px;
+    }
+
+    .nav-block {
+      margin-bottom: 20px;
+    }
+
+    .nav-title {
+      padding: 0 9px 7px;
+      color: var(--faint);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .nav-item {
+      height: 32px;
+      display: grid;
+      grid-template-columns: 20px 1fr auto;
+      align-items: center;
+      gap: 9px;
+      padding: 0 9px;
+      border-radius: var(--radius-control);
+      color: var(--subtle);
+      font-size: 13px;
+      margin: 1px 0;
+    }
+
+    .nav-item svg {
+      color: var(--faint);
+    }
+
+    .nav-item.active {
+      background: var(--selected);
+      color: var(--ink);
+      font-weight: 680;
+      box-shadow: inset 0 0 0 1px var(--selected-line);
+    }
+
+    .count {
+      color: var(--faint);
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .sidebar-foot {
+      border-top: 1px solid var(--line);
+      padding: 12px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .scan-note {
+      color: var(--faint);
+      font-size: 11px;
+      line-height: 1.25;
+      padding-left: 6px;
+    }
+
+    .browser {
+      background: var(--pane);
+      border-right: 1px solid var(--line);
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .browser-head {
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .pane-title {
+      font-size: 18px;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .icon-button,
+    .text-button {
+      height: 30px;
+      border: 0;
+      border-radius: var(--radius-control);
+      color: var(--subtle);
+      background: transparent;
+      display: inline-grid;
+      place-items: center;
+      transition: background 180ms var(--ease), color 180ms var(--ease);
+    }
+
+    .icon-button {
+      width: 30px;
+    }
+
+    .text-button {
+      grid-auto-flow: column;
+      gap: 6px;
+      padding: 0 10px;
+      font-size: 12px;
+      font-weight: 680;
+    }
+
+    .icon-button:hover,
+    .text-button:hover {
+      background: var(--hover);
+      color: var(--ink);
+    }
+
+    .primary {
+      color: var(--detail);
+      background: var(--accent);
+    }
+
+    .primary:hover {
+      color: var(--detail);
+      background: var(--accent);
+      filter: brightness(.97);
+    }
+
+    .search {
+      position: relative;
+    }
+
+    .search svg {
+      position: absolute;
+      left: 11px;
+      top: 9px;
+      color: var(--faint);
+      width: 15px;
+      height: 15px;
+    }
+
+    .search input {
+      width: 100%;
+      height: 34px;
+      border: 0;
+      outline: none;
+      color: var(--ink);
+      background: var(--detail);
+      border-radius: var(--radius-control);
+      padding: 0 10px 0 34px;
+      box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    .search input::placeholder {
+      color: var(--faint);
+    }
+
+    .skill-list {
+      overflow: hidden;
+      padding: 11px 10px 18px;
+    }
+
+    .group {
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 8px;
+      color: var(--faint);
+      font-size: 11px;
+      font-weight: 720;
+    }
+
+    .row {
+      position: relative;
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) 52px;
+      gap: 10px;
+      align-items: center;
+      min-height: 58px;
+      padding: 8px 8px;
+      border-radius: var(--radius-row);
+      color: var(--subtle);
+    }
+
+    .row.active {
+      background: var(--selected);
+      color: var(--ink);
+      box-shadow: inset 0 0 0 1px var(--selected-line);
+    }
+
+    .row:not(.active):hover {
+      background: var(--hover);
+    }
+
+    .row-icon {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      color: var(--subtle);
+      border-radius: 7px;
+    }
+
+    .row.active .row-icon {
+      color: var(--accent);
+    }
+
+    .row-main {
+      min-width: 0;
+    }
+
+    .row-name {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 720;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .row-desc {
+      margin-top: 2px;
+      color: var(--subtle);
+      font-size: 12px;
+      line-height: 1.28;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .row-foot {
+      margin-top: 5px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .agent-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      opacity: .85;
+    }
+
+    .agent-dot:nth-child(1) { background: oklch(0.68 0.12 232); }
+    .agent-dot:nth-child(2) { background: oklch(0.7 0.11 58); }
+    .agent-dot:nth-child(3) { background: oklch(0.68 0.11 304); }
+
+    .row-metric {
+      justify-self: end;
+      display: grid;
+      gap: 3px;
+      text-align: right;
+      color: var(--faint);
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .row-metric strong {
+      color: var(--ink);
+      font-size: 11px;
+    }
+
+    .detail {
+      background: var(--detail);
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+    }
+
+    .detail-head {
+      padding: 20px 24px 14px;
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    .detail-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .title-stack {
+      min-width: 0;
+    }
+
+    .detail-title {
+      font-size: 26px;
+      line-height: 1.15;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .detail-copy {
+      max-width: 760px;
+      margin-top: 7px;
+      color: var(--subtle);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .switch {
+      width: 38px;
+      height: 22px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--mint-light);
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    body[data-theme="dark"] .switch {
+      background: var(--mint-dark);
+    }
+
+    .switch::after {
+      content: "";
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--detail);
+      box-shadow: 0 1px 3px oklch(0.15 0.01 72 / .2);
+    }
+
+    .crumbs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .chip {
+      height: 21px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 0 8px;
+      border-radius: 999px;
+      color: var(--subtle);
+      background: var(--raised);
+      box-shadow: inset 0 0 0 1px var(--line);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .chip:nth-child(1) { background: var(--package-tint); }
+    .chip:nth-child(2) { background: var(--source-tint); }
+    .chip:nth-child(3) { background: var(--review-tint); }
+
+    .detail-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border-bottom: 1px solid var(--hairline);
+      background: var(--detail);
+    }
+
+    .stat {
+      min-height: 50px;
+      padding: 10px 24px;
+      border-right: 1px solid var(--hairline);
+    }
+
+    .stat:nth-child(1) { background: var(--sky-light); }
+    .stat:nth-child(2) { background: var(--mint-light); }
+    .stat:nth-child(3) { background: var(--peach-light); }
+    .stat:nth-child(4) { background: var(--lilac-light); }
+
+    body[data-theme="dark"] .stat:nth-child(1) { background: var(--sky-dark); }
+    body[data-theme="dark"] .stat:nth-child(2) { background: var(--mint-dark); }
+    body[data-theme="dark"] .stat:nth-child(3) { background: var(--peach-dark); }
+    body[data-theme="dark"] .stat:nth-child(4) { background: var(--lilac-dark); }
+
+    .stat:last-child {
+      border-right: 0;
+    }
+
+    .stat-label {
+      color: var(--faint);
+      font-size: 10px;
+      font-weight: 720;
+      letter-spacing: 0;
+    }
+
+    .stat-value {
+      margin-top: 4px;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 720;
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 282px;
+    }
+
+    .doc-pane {
+      min-width: 0;
+      border-right: 1px solid var(--hairline);
+      display: grid;
+      grid-template-rows: 45px 1fr;
+    }
+
+    .tabs {
+      display: flex;
+      align-items: end;
+      gap: 18px;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    .tab {
+      height: 45px;
+      display: inline-flex;
+      align-items: center;
+      color: var(--faint);
+      font-size: 12px;
+      font-weight: 720;
+      position: relative;
+    }
+
+    .tab.active {
+      color: var(--ink);
+    }
+
+    .tab.active::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -1px;
+      height: 1px;
+      background: var(--accent);
+    }
+
+    .markdown-wrap {
+      overflow: hidden;
+      padding: 18px 24px 24px;
+    }
+
+    .markdown-card {
+      height: 100%;
+      border-radius: 18px;
+      background: var(--code-bg);
+      box-shadow: inset 0 0 0 1px var(--line);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: 38px 1fr;
+    }
+
+    .code-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 13px;
+      border-bottom: 1px solid var(--line);
+      color: var(--subtle);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .code-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--faint);
+    }
+
+    pre {
+      margin: 0;
+      padding: 16px 18px 22px;
+      color: var(--code-ink);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.58;
+      white-space: pre-wrap;
+      overflow: hidden;
+    }
+
+    .meta-rail {
+      min-width: 0;
+      padding: 18px 18px 24px;
+      overflow: hidden;
+    }
+
+    .rail-section {
+      padding: 0 0 17px;
+      margin-bottom: 17px;
+      border-bottom: 1px solid var(--hairline);
+    }
+
+    .rail-section:last-child {
+      border-bottom: 0;
+    }
+
+    .rail-title {
+      color: var(--faint);
+      font-size: 11px;
+      font-weight: 760;
+      margin-bottom: 10px;
+    }
+
+    .location,
+    .evidence {
+      padding: 8px 0;
+    }
+
+    .path {
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .caption {
+      margin-top: 4px;
+      color: var(--faint);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .ledger {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 7px 10px;
+      color: var(--subtle);
+      font-size: 12px;
+    }
+
+    .ledger strong {
+      color: var(--ink);
+      font-weight: 720;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .warning {
+      color: var(--warn);
+    }
+
+    .theme-toggle {
+      color: var(--subtle);
+      background: var(--toggle-bg);
+      box-shadow: inset 0 0 0 1px var(--line);
+    }
+
+    @media (max-width: 980px) {
+      body {
+        padding: 0;
+      }
+
+      .prototype {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+        grid-template-columns: 210px minmax(0, 1fr);
+      }
+
+      .detail {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body data-theme="light">
+  <main class="prototype">
+    <aside class="sidebar">
+      <div>
+        <div class="traffic"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
+        <div class="brand">
+          <span class="brand-icon"><i data-lucide="book-open"></i></span>
+          <span class="brand-name">Skill Manager</span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <section class="nav-block">
+          <div class="nav-title">Library</div>
+          <div class="nav-item active"><i data-lucide="layout-grid"></i><span>Installed skills</span><span class="count">108</span></div>
+          <div class="nav-item"><i data-lucide="plus"></i><span>Add skills</span><span></span></div>
+          <div class="nav-item"><i data-lucide="package"></i><span>Packages</span><span class="count">17</span></div>
+        </section>
+
+        <section class="nav-block">
+          <div class="nav-title">Sources</div>
+          <div class="nav-item"><i data-lucide="folder"></i><span>Agents</span><span class="count">67</span></div>
+          <div class="nav-item"><i data-lucide="code-2"></i><span>Codex</span><span class="count">8</span></div>
+          <div class="nav-item"><i data-lucide="book-open"></i><span>Claude</span><span class="count">41</span></div>
+        </section>
+
+        <section class="nav-block">
+          <div class="nav-title">Review</div>
+          <div class="nav-item"><i data-lucide="clock-3"></i><span>Recently used</span><span class="count">31</span></div>
+          <div class="nav-item"><i data-lucide="search"></i><span>No evidence</span><span class="count">64</span></div>
+          <div class="nav-item"><i data-lucide="file-text"></i><span>High context</span><span class="count">12</span></div>
+          <div class="nav-item"><i data-lucide="archive"></i><span>Archived</span><span class="count">3</span></div>
+        </section>
+      </nav>
+
+      <div class="sidebar-foot">
+        <div class="scan-note">Scanned today<br>300 logs checked</div>
+        <button class="icon-button theme-toggle" id="themeToggle" aria-label="Toggle theme"><i data-lucide="moon"></i></button>
+      </div>
+    </aside>
+
+    <section class="browser">
+      <header class="browser-head">
+        <div class="top-row">
+          <div class="pane-title">Skills</div>
+          <div class="toolbar">
+            <button class="icon-button" aria-label="Refresh"><i data-lucide="refresh-cw"></i></button>
+            <button class="icon-button" aria-label="Add"><i data-lucide="plus"></i></button>
+          </div>
+        </div>
+        <div class="search">
+          <i data-lucide="search"></i>
+          <input placeholder="Search name, package, description" value="">
+        </div>
+      </header>
+
+      <div class="skill-list">
+        <div class="group"><span>vercel-labs / agent-browser</span><span>6</span></div>
+        <article class="row active">
+          <div class="row-icon"><i data-lucide="panels-top-left"></i></div>
+          <div class="row-main">
+            <div class="row-name">agent-browser</div>
+            <div class="row-desc">Browser automation CLI for forms, screenshots, scraping, and tests.</div>
+            <div class="row-foot"><span class="agent-dot"></span><span class="agent-dot"></span><span class="agent-dot"></span></div>
+          </div>
+          <div class="row-metric"><strong>22</strong><span>today</span></div>
+        </article>
+
+        <article class="row">
+          <div class="row-icon"><i data-lucide="book-open"></i></div>
+          <div class="row-main">
+            <div class="row-name">agentcore</div>
+            <div class="row-desc">Repo-aware conventions for durable agent work.</div>
+            <div class="row-foot"><span class="agent-dot"></span><span class="agent-dot"></span></div>
+          </div>
+          <div class="row-metric"><strong>7</strong><span>4d</span></div>
+        </article>
+
+        <article class="row">
+          <div class="row-icon"><i data-lucide="code-2"></i></div>
+          <div class="row-main">
+            <div class="row-name">electron</div>
+            <div class="row-desc">Desktop shell patterns, IPC, packaging, and update flows.</div>
+            <div class="row-foot"><span class="agent-dot"></span></div>
+          </div>
+          <div class="row-metric"><strong>0</strong><span>none</span></div>
+        </article>
+
+        <div class="group"><span>design systems</span><span>5</span></div>
+        <article class="row">
+          <div class="row-icon"><i data-lucide="star"></i></div>
+          <div class="row-main">
+            <div class="row-name">frontend-design</div>
+            <div class="row-desc">Visual direction, hierarchy, color, and interface polish.</div>
+            <div class="row-foot"><span class="agent-dot"></span><span class="agent-dot"></span></div>
+          </div>
+          <div class="row-metric"><strong>18</strong><span>2d</span></div>
+        </article>
+
+        <article class="row">
+          <div class="row-icon"><i data-lucide="settings"></i></div>
+          <div class="row-main">
+            <div class="row-name">impeccable</div>
+            <div class="row-desc">Production-grade frontend critique, shaping, and refinement.</div>
+            <div class="row-foot"><span class="agent-dot"></span></div>
+          </div>
+          <div class="row-metric"><strong>3</strong><span>8d</span></div>
+        </article>
+
+        <div class="group"><span>local media</span><span>9</span></div>
+        <article class="row">
+          <div class="row-icon"><i data-lucide="file-text"></i></div>
+          <div class="row-main">
+            <div class="row-name">ai-promo-video-kit</div>
+            <div class="row-desc">Build short-form video packages from briefs and sources.</div>
+            <div class="row-foot"><span class="agent-dot"></span><span class="agent-dot"></span></div>
+          </div>
+          <div class="row-metric"><strong>45</strong><span>9d</span></div>
+        </article>
+
+        <article class="row">
+          <div class="row-icon"><i data-lucide="file-text"></i></div>
+          <div class="row-main">
+            <div class="row-name">baoyu-cover-image</div>
+            <div class="row-desc">Generate article covers with reusable visual directions.</div>
+            <div class="row-foot"><span class="agent-dot"></span></div>
+          </div>
+          <div class="row-metric"><strong>11</strong><span>5d</span></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="detail">
+      <header class="detail-head">
+        <div class="detail-top">
+          <div class="title-stack">
+            <div class="detail-title">agent-browser</div>
+            <div class="detail-copy">Browser automation CLI for AI agents. Use it for navigation, forms, screenshots, extraction, browser tests, and repeatable web checks.</div>
+            <div class="crumbs">
+              <span class="chip"><i data-lucide="git-branch"></i>vercel-labs/agent-browser</span>
+              <span class="chip"><i data-lucide="shield-check"></i>lockfile source</span>
+              <span class="chip"><i data-lucide="package"></i>3 agents</span>
+            </div>
+          </div>
+          <div class="toolbar">
+            <button class="icon-button" aria-label="Search"><i data-lucide="search"></i></button>
+            <button class="icon-button" aria-label="Favorite"><i data-lucide="star"></i></button>
+            <button class="switch" aria-label="Enabled"></button>
+          </div>
+        </div>
+      </header>
+
+      <div class="detail-stats">
+        <div class="stat"><div class="stat-label">USAGE</div><div class="stat-value">22 runs</div></div>
+        <div class="stat"><div class="stat-label">LAST USED</div><div class="stat-value">Today</div></div>
+        <div class="stat"><div class="stat-label">CONTEXT</div><div class="stat-value">91 tokens</div></div>
+        <div class="stat"><div class="stat-label">SIZE</div><div class="stat-value">12 KB</div></div>
+      </div>
+
+      <div class="workspace">
+        <div class="doc-pane">
+          <div class="tabs">
+            <div class="tab active">Content</div>
+            <div class="tab">Usage</div>
+            <div class="tab">Files</div>
+            <div class="tab">History</div>
+          </div>
+
+          <div class="markdown-wrap">
+            <div class="markdown-card">
+              <div class="code-head">
+                <span>SKILL.md</span>
+                <span class="code-actions"><i data-lucide="copy"></i>Copy</span>
+              </div>
+              <pre>---
+name: agent-browser
+description: Browser automation CLI for AI agents. Use when the user needs to interact with websites, including navigating pages, filling forms, clicking buttons, taking screenshots, extracting data, testing web apps, or automating any browser task.
+---
+
+# Agent Browser
+
+Use this skill when browser state matters and the task needs a repeatable action trail.
+
+## Quick start
+
+npx agent-browser open https://example.com
+npx agent-browser click "Sign in"
+npx agent-browser screenshot
+
+Prefer stable selectors. Verify the resulting page state before returning work.</pre>
+            </div>
+          </div>
+        </div>
+
+        <aside class="meta-rail">
+          <section class="rail-section">
+            <div class="rail-title">Installed locations</div>
+            <div class="location">
+              <div class="path">~/.agents/skills/agent-browser</div>
+              <div class="caption">Agents, Codex</div>
+            </div>
+            <div class="location">
+              <div class="path">~/.claude/skills/agent-browser</div>
+              <div class="caption">Claude</div>
+            </div>
+          </section>
+
+          <section class="rail-section">
+            <div class="rail-title">Source</div>
+            <div class="location">
+              <div class="path">github.com/vercel-labs/agent-browser</div>
+              <div class="caption">Commit #3b319028, updated Jun 26</div>
+            </div>
+          </section>
+
+          <section class="rail-section">
+            <div class="rail-title">Local evidence</div>
+            <div class="evidence">
+              <div class="path">rollout-2026-06-29.jsonl</div>
+              <div class="caption">Codex read SKILL.md, today</div>
+            </div>
+            <div class="evidence">
+              <div class="path">project-session.jsonl</div>
+              <div class="caption">Claude Skill tool, 2d ago</div>
+            </div>
+          </section>
+
+          <section class="rail-section">
+            <div class="rail-title">Review ledger</div>
+            <div class="ledger">
+              <span>Protected</span><strong>No</strong>
+              <span>Archive signal</span><strong class="warning">Low</strong>
+              <span>Duplicate paths</span><strong>2</strong>
+            </div>
+          </section>
+
+          <div class="toolbar">
+            <button class="text-button primary"><i data-lucide="folder"></i>Reveal</button>
+            <button class="text-button"><i data-lucide="shield-check"></i>Protect</button>
+            <button class="icon-button" aria-label="Archive"><i data-lucide="archive"></i></button>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const initialTheme = params.get("theme") || "light";
+    document.body.dataset.theme = initialTheme;
+
+    if (window.lucide) {
+      lucide.createIcons();
+    }
+
+    document.getElementById("themeToggle").addEventListener("click", () => {
+      document.body.dataset.theme = document.body.dataset.theme === "dark" ? "light" : "dark";
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+</html>

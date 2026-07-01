@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            package-script: package:mac
+            build-archs: arm64,x64
+            artifact-suffix: macos
+          - os: windows-2022
+            package-script: package:win
+            build-archs: x64
+            artifact-suffix: windows-x64
+          - os: ubuntu-24.04
+            package-script: package:linux
+            build-archs: x64
+            artifact-suffix: linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm --filter @skill-manager/desktop ${{ matrix.package-script }}
+        env:
+          SKILL_MANAGER_BUILD_ARCHS: ${{ matrix.build-archs }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      - name: Install Linux smoke dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Smoke packaged app
+        if: runner.os != 'Linux'
+        run: pnpm smoke:packaged
+      - name: Smoke packaged app on Linux
+        if: runner.os == 'Linux'
+        run: xvfb-run -a pnpm smoke:packaged
+      - run: pnpm checksums
+      - run: pnpm verify:artifacts
+      - run: node scripts/verify-release-assets.mjs --platform=current
+      - uses: actions/upload-artifact@v4
+        with:
+          name: skill-manager-${{ matrix.artifact-suffix }}
+          path: |
+            dist-electron/SkillManager-*
+            dist-electron/latest*.yml
+            dist-electron/SHA256SUMS.txt
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-dist
+          find release-artifacts -type f \
+            \( -name 'SkillManager-*' -o -name 'latest*.yml' \) \
+            -exec cp {} release-dist/ \;
+          cp docs/screenshots/electron-main.png release-dist/screenshot-main.png
+          cp docs/screenshots/electron-dark.png release-dist/screenshot-dark.png
+          cp docs/screenshots/electron-compact.png release-dist/screenshot-compact.png
+          cp docs/releases/v${GITHUB_REF_NAME#v}-notes.md release-dist/release-notes-${GITHUB_REF_NAME}.md
+          (cd release-dist && sha256sum * > SHA256SUMS.txt)
+          node scripts/verify-release-assets.mjs release-dist
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          body_path: docs/releases/${{ github.ref_name }}-notes.md
+          files: release-dist/*

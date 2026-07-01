@@ -1,0 +1,159 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", "Segoe UI", system-ui, sans-serif;
+  --code-font: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --red: oklch(0.68 0.21 27);
+  --yellow: oklch(0.82 0.17 82);
+  --green: oklch(0.7 0.2 146);
+  --green-ring: oklch(0.7 0.2 146 / 0.38);
+  --radius: 0.625rem;
+}
+
+body[data-theme="light"] {
+  color-scheme: light;
+  --page-bg: oklch(0.91 0.018 98);
+  --bg: oklch(0.985 0.025 98);
+  --pane: oklch(0.965 0.018 98);
+  --pane-strong: oklch(0.992 0.023 98 / 0.86);
+  --detail-bg: oklch(0.985 0.025 98);
+  --ink: oklch(0.19 0.006 90);
+  --ink-dim: oklch(0.19 0.006 90 / 0.48);
+  --ink-soft: oklch(0.19 0.006 90 / 0.68);
+  --ink-body: oklch(0.19 0.006 90 / 0.72);
+  --ink-faint: oklch(0.19 0.006 90 / 0.12);
+  --accent: oklch(0.76 0.15 74);
+  --selected-bg: oklch(0.76 0.15 74 / 0.16);
+  --selected-border: oklch(0.76 0.15 74 / 0.46);
+  --hover: oklch(0.19 0.006 90 / 0.035);
+  --hover-strong: oklch(0.19 0.006 90 / 0.055);
+  --input-bg: oklch(0.992 0.023 98 / 0.78);
+  --chip-bg: oklch(0.19 0.006 90 / 0.025);
+  --chip-primary-bg: oklch(0.76 0.15 74 / 0.15);
+  --chip-primary-ink: oklch(0.42 0.09 72);
+  --chip-primary-border: oklch(0.76 0.15 74 / 0.35);
+  --switch-bg: oklch(0.7 0.2 146 / 0.16);
+  --switch-border: oklch(0.19 0.006 90 / 0.18);
+  --stat-bg: oklch(0.19 0.006 90 / 0.018);
+  --button-bg: var(--ink);
+  --button-ink: var(--bg);
+  --code-bg: oklch(0.972 0.018 98);
+  --code-head-bg: oklch(0.952 0.017 98);
+  --code-border: oklch(0.19 0.006 90 / 0.11);
+  --code-ink: oklch(0.22 0.006 90 / 0.8);
+  --code-muted: oklch(0.19 0.006 90 / 0.45);
+  --focus: oklch(0.76 0.15 74 / 0.72);
+  --shadow: 0 25px 70px oklch(0.19 0.006 90 / 0.11), 0 0 0 1px oklch(0.19 0.006 90 / 0.08);
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--bg);
+  --card-foreground: var(--ink);
+  --popover: var(--bg);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--bg);
+  --secondary: var(--hover-strong);
+  --secondary-foreground: var(--ink);
+  --muted: var(--hover);
+  --muted-foreground: var(--ink-dim);
+  --border: var(--ink-faint);
+  --input: var(--ink-faint);
+  --ring: var(--focus);
+  --destructive: oklch(0.55 0.16 30);
+}
+
+body[data-theme="dark"] {
+  color-scheme: dark;
+  --page-bg: oklch(0.11 0.008 95);
+  --bg: oklch(0.155 0.009 95);
+  --pane: oklch(0.185 0.009 95);
+  --pane-strong: oklch(0.17 0.009 95 / 0.9);
+  --detail-bg: oklch(0.145 0.009 95);
+  --ink: oklch(0.92 0.017 96);
+  --ink-dim: oklch(0.92 0.017 96 / 0.46);
+  --ink-soft: oklch(0.92 0.017 96 / 0.66);
+  --ink-body: oklch(0.92 0.017 96 / 0.72);
+  --ink-faint: oklch(0.92 0.017 96 / 0.11);
+  --accent: oklch(0.76 0.15 74);
+  --selected-bg: oklch(0.76 0.15 74 / 0.17);
+  --selected-border: oklch(0.76 0.15 74 / 0.4);
+  --hover: oklch(0.92 0.017 96 / 0.05);
+  --hover-strong: oklch(0.92 0.017 96 / 0.075);
+  --input-bg: oklch(0.12 0.008 95 / 0.72);
+  --chip-bg: oklch(0.92 0.017 96 / 0.045);
+  --chip-primary-bg: oklch(0.76 0.15 74 / 0.14);
+  --chip-primary-ink: oklch(0.88 0.08 78);
+  --chip-primary-border: oklch(0.76 0.15 74 / 0.32);
+  --switch-bg: oklch(0.7 0.2 146 / 0.15);
+  --switch-border: oklch(0.92 0.017 96 / 0.14);
+  --stat-bg: oklch(0.92 0.017 96 / 0.035);
+  --button-bg: var(--ink);
+  --button-ink: var(--bg);
+  --code-bg: oklch(0.12 0.008 95);
+  --code-head-bg: oklch(0.17 0.009 95);
+  --code-border: oklch(0.92 0.017 96 / 0.09);
+  --code-ink: oklch(0.88 0.017 96 / 0.78);
+  --code-muted: oklch(0.92 0.017 96 / 0.42);
+  --focus: oklch(0.76 0.15 74 / 0.72);
+  --shadow: 0 28px 78px oklch(0.04 0.006 95 / 0.46), 0 0 0 1px oklch(0.92 0.017 96 / 0.08);
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--bg);
+  --card-foreground: var(--ink);
+  --popover: var(--bg);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--bg);
+  --secondary: var(--hover-strong);
+  --secondary-foreground: var(--ink);
+  --muted: var(--hover);
+  --muted-foreground: var(--ink-dim);
+  --border: var(--ink-faint);
+  --input: var(--ink-faint);
+  --ring: var(--focus);
+  --destructive: oklch(0.55 0.16 30);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--page-bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: default;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+[role="tab"]:focus-visible {
+  outline: none;
+  box-shadow: inset 0 -2px 0 var(--accent);
+}

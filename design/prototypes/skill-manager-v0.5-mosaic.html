@@ -1,0 +1,1136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skill Manager v0.5 Mosaic prototype</title>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+      --mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --red: oklch(0.68 0.21 27);
+      --yellow: oklch(0.82 0.17 82);
+      --green: oklch(0.7 0.2 146);
+      --green-ring: oklch(0.7 0.2 146 / 0.38);
+    }
+
+    body[data-theme="light"] {
+      color-scheme: light;
+      --page-bg: oklch(0.91 0.018 98);
+      --bg: oklch(0.985 0.025 98);
+      --pane: oklch(0.965 0.018 98);
+      --pane-strong: oklch(0.992 0.023 98 / 0.86);
+      --detail-bg: oklch(0.985 0.025 98);
+      --ink: oklch(0.19 0.006 90);
+      --ink-dim: oklch(0.19 0.006 90 / 0.48);
+      --ink-soft: oklch(0.19 0.006 90 / 0.68);
+      --ink-body: oklch(0.19 0.006 90 / 0.72);
+      --ink-faint: oklch(0.19 0.006 90 / 0.12);
+      --ink-hairline: oklch(0.19 0.006 90 / 0.065);
+      --accent: oklch(0.76 0.15 74);
+      --accent-ink: oklch(0.42 0.09 72);
+      --accent-soft: oklch(0.76 0.15 74 / 0.14);
+      --hover: oklch(0.19 0.006 90 / 0.035);
+      --hover-strong: oklch(0.19 0.006 90 / 0.055);
+      --input-bg: oklch(0.992 0.023 98 / 0.78);
+      --selected-bg: oklch(0.76 0.15 74 / 0.16);
+      --selected-border: oklch(0.76 0.15 74 / 0.46);
+      --active-icon: oklch(0.5 0.1 72);
+      --chip-bg: oklch(0.19 0.006 90 / 0.025);
+      --chip-primary-bg: oklch(0.76 0.15 74 / 0.15);
+      --chip-primary-ink: oklch(0.42 0.09 72);
+      --chip-primary-border: oklch(0.76 0.15 74 / 0.35);
+      --switch-bg: oklch(0.7 0.2 146 / 0.16);
+      --switch-border: oklch(0.19 0.006 90 / 0.18);
+      --stat-bg: oklch(0.19 0.006 90 / 0.018);
+      --brand-shadow: inset 0 0 0 1px oklch(0.19 0.006 90 / 0.1);
+      --button-bg: var(--ink);
+      --button-ink: var(--bg);
+      --code-bg: oklch(0.972 0.018 98);
+      --code-head-bg: oklch(0.952 0.017 98);
+      --code-border: oklch(0.19 0.006 90 / 0.11);
+      --code-ink: oklch(0.22 0.006 90 / 0.8);
+      --code-muted: oklch(0.19 0.006 90 / 0.45);
+      --token-key: oklch(0.49 0.1 73);
+      --token-val: oklch(0.5 0.08 52);
+      --token-comment: oklch(0.19 0.006 90 / 0.36);
+      --token-text: oklch(0.4 0.055 245);
+      --shadow: 0 25px 70px oklch(0.19 0.006 90 / 0.11), 0 0 0 1px oklch(0.19 0.006 90 / 0.08);
+    }
+
+    body[data-theme="dark"] {
+      color-scheme: dark;
+      --page-bg: oklch(0.11 0.008 95);
+      --bg: oklch(0.155 0.009 95);
+      --pane: oklch(0.185 0.009 95);
+      --pane-strong: oklch(0.17 0.009 95 / 0.9);
+      --detail-bg: oklch(0.145 0.009 95);
+      --ink: oklch(0.92 0.017 96);
+      --ink-dim: oklch(0.92 0.017 96 / 0.46);
+      --ink-soft: oklch(0.92 0.017 96 / 0.66);
+      --ink-body: oklch(0.92 0.017 96 / 0.72);
+      --ink-faint: oklch(0.92 0.017 96 / 0.11);
+      --ink-hairline: oklch(0.92 0.017 96 / 0.065);
+      --accent: oklch(0.76 0.15 74);
+      --accent-ink: oklch(0.96 0.025 96);
+      --accent-soft: oklch(0.76 0.15 74 / 0.15);
+      --hover: oklch(0.92 0.017 96 / 0.05);
+      --hover-strong: oklch(0.92 0.017 96 / 0.075);
+      --input-bg: oklch(0.12 0.008 95 / 0.72);
+      --selected-bg: oklch(0.76 0.15 74 / 0.17);
+      --selected-border: oklch(0.76 0.15 74 / 0.4);
+      --active-icon: oklch(0.78 0.14 74);
+      --chip-bg: oklch(0.92 0.017 96 / 0.045);
+      --chip-primary-bg: oklch(0.76 0.15 74 / 0.14);
+      --chip-primary-ink: oklch(0.88 0.08 78);
+      --chip-primary-border: oklch(0.76 0.15 74 / 0.32);
+      --switch-bg: oklch(0.7 0.2 146 / 0.15);
+      --switch-border: oklch(0.92 0.017 96 / 0.14);
+      --stat-bg: oklch(0.92 0.017 96 / 0.035);
+      --brand-shadow: inset 0 0 0 1px oklch(0.92 0.017 96 / 0.16);
+      --button-bg: var(--ink);
+      --button-ink: var(--bg);
+      --code-bg: oklch(0.12 0.008 95);
+      --code-head-bg: oklch(0.17 0.009 95);
+      --code-border: oklch(0.92 0.017 96 / 0.09);
+      --code-ink: oklch(0.88 0.017 96 / 0.78);
+      --code-muted: oklch(0.92 0.017 96 / 0.42);
+      --token-key: oklch(0.8 0.13 76);
+      --token-val: oklch(0.79 0.08 53);
+      --token-comment: oklch(0.92 0.017 96 / 0.34);
+      --token-text: oklch(0.76 0.055 245);
+      --shadow: 0 28px 78px oklch(0.04 0.006 95 / 0.46), 0 0 0 1px oklch(0.92 0.017 96 / 0.08);
+    }
+
+    body[data-theme="light"],
+    body[data-theme="dark"] {
+      --focus: oklch(0.76 0.15 74 / 0.72);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--page-bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: 26px;
+      overflow: auto;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: default;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+
+    [data-lucide] {
+      width: 16px;
+      height: 16px;
+      stroke-width: 1.85;
+    }
+
+    .window {
+      width: min(1388px, calc(100vw - 52px));
+      height: min(884px, calc(100vh - 52px));
+      min-width: 1120px;
+      min-height: 720px;
+      background: var(--bg);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 232px 356px minmax(0, 1fr);
+      transition: background .2s ease, box-shadow .2s ease;
+    }
+
+    @media (max-width: 1200px) {
+      body {
+        padding: 14px;
+      }
+
+      .window {
+        width: calc(100vw - 28px);
+        height: calc(100vh - 28px);
+        min-width: 0;
+        grid-template-columns: 210px 320px minmax(0, 1fr);
+      }
+
+      .workspace {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .rail {
+        display: none;
+      }
+    }
+
+    .sidebar,
+    .list-pane,
+    .detail {
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .sidebar {
+      position: relative;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      border-right: 1px solid var(--ink-faint);
+      background: var(--bg);
+    }
+
+    .traffic {
+      display: flex;
+      gap: 8px;
+      padding: 18px 20px 15px;
+    }
+
+    .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+    }
+
+    .red { background: var(--red); }
+    .yellow { background: var(--yellow); }
+    .green { background: var(--green); }
+
+    .brand {
+      padding: 0 20px 22px;
+    }
+
+    .brand-main {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      color: var(--ink);
+      background: var(--accent);
+      box-shadow: var(--brand-shadow);
+    }
+
+    .system-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 13px;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      color: var(--ink-dim);
+      text-transform: uppercase;
+    }
+
+    .pulse {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse-green 2.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse-green {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--green-ring); }
+      50% { opacity: .55; box-shadow: 0 0 0 4px transparent; }
+    }
+
+    .nav {
+      padding: 2px 14px 16px;
+      overflow: hidden;
+    }
+
+    .nav-block {
+      margin-bottom: 22px;
+    }
+
+    .nav-title {
+      padding: 0 9px 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--ink-dim);
+    }
+
+    .nav-item {
+      height: 34px;
+      border-radius: 6px;
+      display: grid;
+      grid-template-columns: 19px 1fr auto;
+      align-items: center;
+      gap: 9px;
+      width: 100%;
+      border: 0;
+      background: transparent;
+      padding: 0 9px;
+      color: var(--ink-soft);
+      font-size: 13px;
+      text-align: left;
+      transition: background .18s ease, color .18s ease;
+    }
+
+    .nav-item:hover {
+      background: var(--hover);
+      color: var(--ink);
+    }
+
+    .nav-item.active {
+      background: var(--accent-soft);
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .nav-item [data-lucide] {
+      color: var(--ink-dim);
+    }
+
+    .count {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink-dim);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .side-footer {
+      border-top: 1px solid var(--ink-faint);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .scan-label {
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.45;
+      letter-spacing: 0.04em;
+      color: var(--ink-dim);
+    }
+
+    .ghost-button {
+      border: 0;
+      background: transparent;
+      color: var(--ink-dim);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      height: 30px;
+      padding: 0 9px;
+      border-radius: 5px;
+      transition: background .18s ease, color .18s ease;
+    }
+
+    .ghost-button:hover {
+      background: var(--hover-strong);
+      color: var(--ink);
+    }
+
+    .list-pane {
+      border-right: 1px solid var(--ink-faint);
+      background: var(--pane);
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .list-head {
+      padding: 18px 16px 13px;
+      border-bottom: 1px solid var(--ink-faint);
+      background: var(--pane-strong);
+    }
+
+    .list-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 13px;
+    }
+
+    .pane-title {
+      font-size: 19px;
+      font-weight: 650;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .icon-btn {
+      width: 30px;
+      height: 30px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--ink-dim);
+      display: grid;
+      place-items: center;
+      transition: background .18s ease, color .18s ease, transform .2s var(--ease);
+    }
+
+    .icon-btn:hover {
+      background: var(--hover-strong);
+      color: var(--ink);
+    }
+
+    .search {
+      position: relative;
+    }
+
+    .search [data-lucide] {
+      position: absolute;
+      left: 12px;
+      top: 9px;
+      color: var(--ink-dim);
+      width: 15px;
+      height: 15px;
+    }
+
+    .search input {
+      width: 100%;
+      height: 34px;
+      border: 1px solid var(--ink-faint);
+      outline: 2px solid transparent;
+      outline-offset: 2px;
+      border-radius: 7px;
+      background: var(--input-bg);
+      color: var(--ink);
+      padding: 0 11px 0 35px;
+      font-size: 13px;
+    }
+
+    .search input::placeholder {
+      color: var(--ink-dim);
+    }
+
+    .rows {
+      overflow: hidden;
+      padding: 12px 10px 20px;
+    }
+
+    .group {
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      color: var(--ink-dim);
+    }
+
+    .skill-row {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) 54px;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 58px;
+      padding: 8px 9px;
+      border-radius: 8px;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+      transition: background .18s ease, border-color .18s ease;
+      border: 1px solid transparent;
+    }
+
+    .skill-row:hover {
+      background: var(--hover);
+    }
+
+    .skill-row.active {
+      background: var(--selected-bg);
+      border-color: var(--selected-border);
+    }
+
+    .skill-icon {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      color: var(--ink-soft);
+    }
+
+    .skill-row.active .skill-icon {
+      color: var(--active-icon);
+    }
+
+    .skill-main {
+      min-width: 0;
+    }
+
+    .skill-name {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 600;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .skill-desc {
+      margin-top: 3px;
+      color: var(--ink-dim);
+      font-size: 12px;
+      line-height: 1.35;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .agent-dots {
+      display: flex;
+      gap: 5px;
+      margin-top: 6px;
+    }
+
+    .agent-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .metric {
+      justify-self: end;
+      text-align: right;
+      display: grid;
+      gap: 3px;
+      font-family: var(--mono);
+      color: var(--ink-dim);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .metric strong {
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .detail {
+      background: var(--detail-bg);
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+    }
+
+    .detail-head {
+      padding: 22px 24px 16px;
+      border-bottom: 1px solid var(--ink-faint);
+    }
+
+    .detail-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .detail-title {
+      font-size: 29px;
+      line-height: 1.05;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .detail-copy {
+      margin-top: 9px;
+      max-width: 760px;
+      color: var(--ink-body);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .chips {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      margin-top: 13px;
+    }
+
+    .chip {
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--ink-faint);
+      border-radius: 4px;
+      background: var(--chip-bg);
+      color: var(--ink-dim);
+      padding: 0 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+
+    .chip.primary {
+      background: var(--chip-primary-bg);
+      color: var(--chip-primary-ink);
+      border-color: var(--chip-primary-border);
+    }
+
+    .switch {
+      width: 40px;
+      height: 22px;
+      border-radius: 999px;
+      border: 1px solid var(--switch-border);
+      background: var(--switch-bg);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 2px;
+    }
+
+    .switch::after {
+      content: "";
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 3px oklch(0.7 0.2 146 / 0.12);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border-bottom: 1px solid var(--ink-faint);
+    }
+
+    .stat {
+      min-height: 54px;
+      padding: 11px 24px;
+      border-right: 1px solid var(--ink-faint);
+      background: var(--stat-bg);
+    }
+
+    .stat:last-child {
+      border-right: none;
+    }
+
+    .stat-label {
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+    }
+
+    .stat-value {
+      margin-top: 5px;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 282px;
+    }
+
+    .doc {
+      border-right: 1px solid var(--ink-faint);
+      display: grid;
+      grid-template-rows: 46px 1fr;
+      min-width: 0;
+    }
+
+    .tabs {
+      display: flex;
+      align-items: end;
+      gap: 0;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--ink-faint);
+    }
+
+    .tab {
+      height: 46px;
+      border: 0;
+      background: transparent;
+      display: inline-flex;
+      align-items: center;
+      padding: 0 10px;
+      position: relative;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink-dim);
+      text-align: left;
+      transition: color .15s ease;
+    }
+
+    .tab.active {
+      color: var(--ink);
+      font-weight: 500;
+    }
+
+    .tab.active::after {
+      content: "";
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: -1px;
+      height: 2px;
+      background: var(--accent);
+    }
+
+    .markdown-wrap {
+      overflow: hidden;
+      padding: 18px 24px 24px;
+    }
+
+    .code-card {
+      height: 100%;
+      border-radius: 8px;
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: 40px 1fr;
+    }
+
+    .code-head {
+      background: var(--code-head-bg);
+      border-bottom: 1px solid var(--code-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 13px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--code-muted);
+    }
+
+    .code-actions {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .code-action {
+      border: 0;
+      background: transparent;
+      color: inherit;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 26px;
+      padding: 0 6px;
+      border-radius: 5px;
+    }
+
+    .code-action:hover {
+      background: var(--hover);
+      color: var(--ink);
+    }
+
+    pre {
+      margin: 0;
+      padding: 18px 20px 24px;
+      overflow: hidden;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.78;
+      color: var(--code-ink);
+      white-space: pre-wrap;
+    }
+
+    .token-key { color: var(--token-key); }
+    .token-val { color: var(--token-val); }
+    .token-comment { color: var(--token-comment); }
+    .token-text { color: var(--token-text); }
+
+    .rail {
+      padding: 18px 18px 24px;
+      overflow: hidden;
+    }
+
+    .rail-section {
+      padding-bottom: 18px;
+      margin-bottom: 18px;
+      border-bottom: 1px solid var(--ink-faint);
+    }
+
+    .rail-section:last-child {
+      border-bottom: none;
+    }
+
+    .rail-title {
+      margin-bottom: 11px;
+      font-family: var(--mono);
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+    }
+
+    .path {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--ink);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .caption {
+      margin-top: 4px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--ink-dim);
+    }
+
+    .location,
+    .evidence {
+      padding: 8px 0;
+    }
+
+    .ledger {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 12px;
+      font-size: 12px;
+      color: var(--ink-soft);
+    }
+
+    .ledger strong {
+      font-family: var(--mono);
+      font-weight: 600;
+      color: var(--ink);
+      text-align: right;
+    }
+
+    .text-btn {
+      height: 31px;
+      border: 0;
+      border-radius: 5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 11px;
+      background: var(--button-bg);
+      color: var(--button-ink);
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      transition: opacity .15s ease;
+    }
+
+    .text-btn:hover {
+      opacity: .82;
+    }
+
+    .arrow-icon {
+      transition: transform .2s var(--ease);
+    }
+
+    .text-btn:hover .arrow-icon {
+      transform: translateX(4px);
+    }
+
+    @media (max-width: 1200px) {
+      .workspace {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .doc {
+        border-right: none;
+      }
+
+      .rail {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body data-theme="light">
+  <main class="window">
+    <aside class="sidebar">
+      <div>
+        <div class="traffic"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span></div>
+        <div class="brand">
+          <div class="brand-main">
+            <span class="brand-mark"><i data-lucide="book-open"></i></span>
+            <span>Skill Manager</span>
+          </div>
+          <div class="system-status"><span class="pulse"></span><span>All roots online</span></div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <section class="nav-block">
+          <div class="nav-title">Library</div>
+          <button class="nav-item active" type="button" aria-current="page"><i data-lucide="layout-grid"></i><span>Installed skills</span><span class="count">108</span></button>
+          <button class="nav-item" type="button"><i data-lucide="plus"></i><span>Add skills</span><span></span></button>
+          <button class="nav-item" type="button"><i data-lucide="package"></i><span>Packages</span><span class="count">17</span></button>
+        </section>
+
+        <section class="nav-block">
+          <div class="nav-title">Sources</div>
+          <button class="nav-item" type="button"><i data-lucide="folder"></i><span>Agents</span><span class="count">67</span></button>
+          <button class="nav-item" type="button"><i data-lucide="code-2"></i><span>Codex</span><span class="count">8</span></button>
+          <button class="nav-item" type="button"><i data-lucide="book-open"></i><span>Claude</span><span class="count">41</span></button>
+        </section>
+
+        <section class="nav-block">
+          <div class="nav-title">Review</div>
+          <button class="nav-item" type="button"><i data-lucide="clock-3"></i><span>Recently used</span><span class="count">31</span></button>
+          <button class="nav-item" type="button"><i data-lucide="search"></i><span>No evidence</span><span class="count">64</span></button>
+          <button class="nav-item" type="button"><i data-lucide="file-text"></i><span>High context</span><span class="count">12</span></button>
+          <button class="nav-item" type="button"><i data-lucide="archive"></i><span>Archived</span><span class="count">3</span></button>
+        </section>
+      </nav>
+
+      <div class="side-footer">
+        <div class="scan-label">SCANNED TODAY<br>300 LOGS CHECKED</div>
+        <button class="ghost-button" id="themeToggle" type="button" aria-label="Switch theme" title="Switch theme"><i data-lucide="moon"></i></button>
+      </div>
+    </aside>
+
+    <section class="list-pane">
+      <header class="list-head">
+        <div class="list-title-row">
+          <div class="pane-title">Skills</div>
+          <div class="toolbar">
+            <button class="icon-btn" type="button" aria-label="Rescan skills" title="Rescan skills"><i data-lucide="refresh-cw"></i></button>
+            <button class="icon-btn" type="button" aria-label="Add skill" title="Add skill"><i data-lucide="plus"></i></button>
+          </div>
+        </div>
+        <div class="search">
+          <i data-lucide="search"></i>
+          <input aria-label="Search skills" placeholder="Search name, package, description">
+        </div>
+      </header>
+
+      <div class="rows">
+        <div class="group"><span>VERCEL-LABS / AGENT-BROWSER</span><span>6</span></div>
+        <button class="skill-row active" type="button" aria-current="true">
+          <div class="skill-icon"><i data-lucide="panels-top-left"></i></div>
+          <div class="skill-main">
+            <div class="skill-name">agent-browser</div>
+            <div class="skill-desc">Browser automation CLI for forms, screenshots, scraping, and tests.</div>
+            <div class="agent-dots"><span class="agent-dot"></span><span class="agent-dot"></span><span class="agent-dot"></span></div>
+          </div>
+          <div class="metric"><strong>22</strong><span>today</span></div>
+        </button>
+        <button class="skill-row" type="button">
+          <div class="skill-icon"><i data-lucide="book-open"></i></div>
+          <div class="skill-main">
+            <div class="skill-name">agentcore</div>
+            <div class="skill-desc">Repo-aware conventions for durable agent work.</div>
+            <div class="agent-dots"><span class="agent-dot"></span><span class="agent-dot"></span></div>
+          </div>
+          <div class="metric"><strong>7</strong><span>4d</span></div>
+        </button>
+        <button class="skill-row" type="button">
+          <div class="skill-icon"><i data-lucide="code-2"></i></div>
+          <div class="skill-main">
+            <div class="skill-name">electron</div>
+            <div class="skill-desc">Desktop shell patterns, IPC, packaging, and update flows.</div>
+            <div class="agent-dots"><span class="agent-dot"></span></div>
+          </div>
+          <div class="metric"><strong>0</strong><span>none</span></div>
+        </button>
+
+        <div class="group"><span>DESIGN SYSTEMS</span><span>5</span></div>
+        <button class="skill-row" type="button">
+          <div class="skill-icon"><i data-lucide="star"></i></div>
+          <div class="skill-main">
+            <div class="skill-name">frontend-design</div>
+            <div class="skill-desc">Visual direction, hierarchy, color, and interface polish.</div>
+            <div class="agent-dots"><span class="agent-dot"></span><span class="agent-dot"></span></div>
+          </div>
+          <div class="metric"><strong>18</strong><span>2d</span></div>
+        </button>
+        <button class="skill-row" type="button">
+          <div class="skill-icon"><i data-lucide="settings"></i></div>
+          <div class="skill-main">
+            <div class="skill-name">impeccable</div>
+            <div class="skill-desc">Production-grade frontend critique, shaping, and refinement.</div>
+            <div class="agent-dots"><span class="agent-dot"></span></div>
+          </div>
+          <div class="metric"><strong>3</strong><span>8d</span></div>
+        </button>
+
+        <div class="group"><span>LOCAL MEDIA</span><span>9</span></div>
+        <button class="skill-row" type="button">
+          <div class="skill-icon"><i data-lucide="file-text"></i></div>
+          <div class="skill-main">
+            <div class="skill-name">ai-promo-video-kit</div>
+            <div class="skill-desc">Build short-form video packages from briefs and sources.</div>
+            <div class="agent-dots"><span class="agent-dot"></span><span class="agent-dot"></span></div>
+          </div>
+          <div class="metric"><strong>45</strong><span>9d</span></div>
+        </button>
+        <button class="skill-row" type="button">
+          <div class="skill-icon"><i data-lucide="file-text"></i></div>
+          <div class="skill-main">
+            <div class="skill-name">baoyu-cover-image</div>
+            <div class="skill-desc">Generate article covers with reusable visual directions.</div>
+            <div class="agent-dots"><span class="agent-dot"></span></div>
+          </div>
+          <div class="metric"><strong>11</strong><span>5d</span></div>
+        </button>
+      </div>
+    </section>
+
+    <section class="detail">
+      <header class="detail-head">
+        <div class="detail-top">
+          <div>
+            <div class="detail-title">agent-browser</div>
+            <div class="detail-copy">Browser automation CLI for AI agents. Use it for navigation, forms, screenshots, extraction, browser tests, and repeatable web checks.</div>
+            <div class="chips">
+              <span class="chip primary"><i data-lucide="git-branch"></i>vercel-labs/agent-browser</span>
+              <span class="chip"><i data-lucide="shield-check"></i>lockfile source</span>
+              <span class="chip"><i data-lucide="package"></i>3 agents</span>
+            </div>
+          </div>
+          <div class="toolbar">
+            <button class="icon-btn" type="button" aria-label="Find in skill" title="Find in skill"><i data-lucide="search"></i></button>
+            <button class="icon-btn" type="button" aria-label="Protect skill" title="Protect skill"><i data-lucide="star"></i></button>
+            <button class="switch" type="button" aria-label="Skill enabled" aria-pressed="true"></button>
+          </div>
+        </div>
+      </header>
+
+      <div class="stats">
+        <div class="stat"><div class="stat-label">Usage</div><div class="stat-value">22 runs</div></div>
+        <div class="stat"><div class="stat-label">Last used</div><div class="stat-value">Today</div></div>
+        <div class="stat"><div class="stat-label">Context</div><div class="stat-value">91 tokens</div></div>
+        <div class="stat"><div class="stat-label">Size</div><div class="stat-value">12 KB</div></div>
+      </div>
+
+      <div class="workspace">
+        <div class="doc">
+          <div class="tabs" role="tablist" aria-label="Skill detail views">
+            <button class="tab active" type="button" role="tab" aria-selected="true">Content</button>
+            <button class="tab" type="button" role="tab" aria-selected="false">Usage</button>
+            <button class="tab" type="button" role="tab" aria-selected="false">Files</button>
+            <button class="tab" type="button" role="tab" aria-selected="false">History</button>
+          </div>
+
+          <div class="markdown-wrap">
+            <div class="code-card">
+              <div class="code-head">
+                <span>SKILL.md</span>
+                <span class="code-actions"><button class="code-action" type="button" aria-label="Copy skill content"><i data-lucide="copy"></i>Copy</button></span>
+              </div>
+<pre><span class="token-comment">---</span>
+<span class="token-key">name</span>: <span class="token-val">agent-browser</span>
+<span class="token-key">description</span>: <span class="token-text">Browser automation CLI for AI agents. Use when the user needs to interact with websites, including navigating pages, filling forms, clicking buttons, taking screenshots, extracting data, testing web apps, or automating any browser task.</span>
+<span class="token-comment">---</span>
+
+<span class="token-key"># Agent Browser</span>
+
+Use this skill when browser state matters and the task needs a repeatable action trail.
+
+<span class="token-key">## Quick start</span>
+
+npx agent-browser open https://example.com
+npx agent-browser click "Sign in"
+npx agent-browser screenshot
+
+Prefer stable selectors. Verify the resulting page state before returning work.</pre>
+            </div>
+          </div>
+        </div>
+
+        <aside class="rail">
+          <section class="rail-section">
+            <div class="rail-title">Installed locations</div>
+            <div class="location"><div class="path">~/.agents/skills/agent-browser</div><div class="caption">Agents, Codex</div></div>
+            <div class="location"><div class="path">~/.claude/skills/agent-browser</div><div class="caption">Claude</div></div>
+          </section>
+          <section class="rail-section">
+            <div class="rail-title">Source</div>
+            <div class="location"><div class="path">github.com/vercel-labs/agent-browser</div><div class="caption">Commit #3b319028, updated Jun 26</div></div>
+          </section>
+          <section class="rail-section">
+            <div class="rail-title">Local evidence</div>
+            <div class="evidence"><div class="path">rollout-2026-06-29.jsonl</div><div class="caption">Codex read SKILL.md, today</div></div>
+            <div class="evidence"><div class="path">project-session.jsonl</div><div class="caption">Claude Skill tool, 2d ago</div></div>
+          </section>
+          <section class="rail-section">
+            <div class="rail-title">Review ledger</div>
+            <div class="ledger">
+              <span>Protected</span><strong>No</strong>
+              <span>Archive signal</span><strong>Low</strong>
+              <span>Duplicate paths</span><strong>2</strong>
+            </div>
+          </section>
+          <button class="text-btn" type="button">Reveal <i data-lucide="arrow-right" class="arrow-icon"></i></button>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const initialTheme = params.get("theme") === "dark" ? "dark" : "light";
+    const themeToggle = document.getElementById("themeToggle");
+
+    function renderIcons() {
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+    }
+
+    function setTheme(theme) {
+      document.body.dataset.theme = theme;
+      if (themeToggle) {
+        const nextTheme = theme === "dark" ? "light" : "dark";
+        const iconName = theme === "dark" ? "sun" : "moon";
+        themeToggle.setAttribute("aria-label", `Switch to ${nextTheme} theme`);
+        themeToggle.innerHTML = `<i data-lucide="${iconName}"></i>`;
+      }
+      renderIcons();
+    }
+
+    setTheme(initialTheme);
+
+    if (themeToggle) {
+      themeToggle.addEventListener("click", () => {
+        const nextTheme = document.body.dataset.theme === "dark" ? "light" : "dark";
+        setTheme(nextTheme);
+      });
+    }
+  </script>
+</body>
+</html>

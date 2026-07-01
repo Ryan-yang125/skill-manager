@@ -1,0 +1,33 @@
+{
+  "name": "skill-manager",
+  "version": "0.5.0",
+  "private": true,
+  "description": "Local-first desktop app for managing agent skills.",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @skill-manager/desktop dev",
+    "frontend": "pnpm --filter @skill-manager/desktop frontend",
+    "build": "pnpm --filter @skill-manager/core build && pnpm --filter @skill-manager/desktop build",
+    "test": "pnpm --filter @skill-manager/core test && pnpm --filter @skill-manager/desktop test",
+    "lint": "pnpm --filter @skill-manager/core lint && pnpm --filter @skill-manager/desktop lint",
+    "package": "pnpm --filter @skill-manager/desktop package",
+    "package:linux": "pnpm --filter @skill-manager/desktop package:linux",
+    "package:win": "pnpm --filter @skill-manager/desktop package:win",
+    "package:all": "pnpm package && pnpm package:linux && pnpm package:win",
+    "screenshots": "node scripts/capture-ui-screenshots.mjs",
+    "smoke": "pnpm build && node scripts/smoke-electron.mjs",
+    "smoke:packaged": "node scripts/smoke-packaged.mjs",
+    "checksums": "node scripts/generate-checksums.mjs",
+    "verify:artifacts": "node scripts/verify-artifacts.mjs",
+    "verify:release-assets": "node scripts/verify-release-assets.mjs",
+    "release:dist": "node scripts/prepare-release-dist.mjs",
+    "verify:release": "pnpm checksums && pnpm verify:artifacts && pnpm verify:release-assets",
+    "release:local": "pnpm release:check && pnpm package:all && pnpm smoke:packaged && pnpm verify:release",
+    "release:check": "node scripts/release-check.mjs"
+  },
+  "packageManager": "pnpm@11.7.0",
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "typescript": "^5.9.3"
+  }
+}
