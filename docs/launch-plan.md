@@ -62,7 +62,7 @@ Completed locally:
 
 External publication steps after local readiness:
 
-- Run CI release workflow for macOS, Windows, and Linux x64/arm64 release artifacts.
+- Run CI release workflow for macOS arm64, Windows x64, and Linux x64 release artifacts.
 - Verify Windows and Linux packaged app smoke results from clean CI runners or target machines.
 - Create the GitHub Release and verify public download links.
 
@@ -315,7 +315,6 @@ Artifacts:
   - `dmg`
   - `zip`
   - `arm64`
-  - `x64`
 - Windows:
   - `nsis`
   - `msix` when store path is used
@@ -405,7 +404,7 @@ GitHub Actions workflows:
 - `release.yml`
   - trigger on `v*` tag
   - matrix for macOS, Windows, Linux
-  - macOS arm64 and x64 targets
+  - macOS arm64 target
   - Windows x64 target
   - Linux x64 target
   - build packages
@@ -673,6 +672,7 @@ These items improve public trust after the direct-download release is usable:
 
 - Configure Apple Developer ID signing, hardened runtime, notarization, and stapling.
 - Run `spctl` and `xcrun stapler validate` on a notarized macOS artifact.
+- Add a macOS x64 artifact when an Intel macOS release runner is available.
 - Sign Windows installer artifacts and verify with `signtool`.
 - Run private-channel auto-update smoke from version `N` to version `N+1`.
 

@@ -238,7 +238,7 @@ describe("Usage analyzer", () => {
     expect(usage.get("agent-browser")?.count).toBe(2);
     expect(usage.get("agent-browser")?.evidence.map((item) => item.sessionKind).sort()).toEqual(["active", "archived"]);
     const audits = await analyzer.sessionRootAudits();
-    expect(audits.find((audit) => audit.path.endsWith(".codex/archived_sessions"))?.logCount).toBe(1);
+    expect(audits.find((audit) => audit.path === archiveDir)?.logCount).toBe(1);
   });
 
   it("finds Claude Skill tool calls", async () => {

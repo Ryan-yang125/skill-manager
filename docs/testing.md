@@ -69,7 +69,7 @@ node scripts/verify-release-assets.mjs --platform=current
 pnpm smoke:packaged
 ```
 
-The release workflow builds macOS arm64/x64, Windows x64, and Linux x64. The publish job uses the default all-platform mode against the flattened release directory.
+The release workflow builds macOS arm64, Windows x64, and Linux x64. The publish job uses the default all-platform mode against the flattened release directory.
 
 `pnpm release:dist` prepares a local `release-dist/` directory with release artifacts, screenshots, release notes, `SHA256SUMS.txt`, and asset verification. It mirrors the GitHub Release publish job before uploading.
 

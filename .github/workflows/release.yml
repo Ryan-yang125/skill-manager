@@ -16,8 +16,8 @@ jobs:
         include:
           - os: macos-14
             package-script: package:mac
-            build-archs: arm64,x64
-            artifact-suffix: macos
+            build-archs: arm64
+            artifact-suffix: macos-arm64
           - os: windows-2022
             package-script: package:win
             build-archs: x64
