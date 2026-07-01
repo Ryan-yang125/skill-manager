@@ -16,7 +16,7 @@
     "build": "pnpm --filter @skill-manager/core build && tsc -p electron/tsconfig.json && esbuild electron/preload.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist-electron/preload.cjs && tsc -p tsconfig.json --noEmit && vite build",
     "test": "vitest run --passWithNoTests",
     "lint": "pnpm --filter @skill-manager/core build && tsc -p electron/tsconfig.json --noEmit && tsc -p tsconfig.json --noEmit",
-    "package": "pnpm build && electron-builder --mac dmg zip dir --publish never --config.mac.identity=- --config.mac.hardenedRuntime=false --config.mac.gatekeeperAssess=false",
+    "package": "pnpm build && node ../../scripts/package-mac.mjs",
     "package:mac": "pnpm build && node ../../scripts/package-mac.mjs",
     "package:win": "pnpm build && node ../../scripts/package-win.mjs",
     "package:linux": "pnpm build && node ../../scripts/package-linux.mjs"
@@ -62,7 +62,7 @@
     "executableName": "Skill Manager",
     "artifactName": "SkillManager-${version}-${os}-${arch}.${ext}",
     "asar": true,
-    "afterSign": "../../scripts/after-sign.cjs",
+    "afterSign": "electron/after-sign.cjs",
     "files": [
       "dist-renderer/**/*",
       "dist-electron/**/*",
