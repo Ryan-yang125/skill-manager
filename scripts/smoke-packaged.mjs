@@ -6,6 +6,7 @@ import path from "node:path";
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const distRoot = path.join(repoRoot, "dist-electron");
 const productName = "Skill Manager";
+const artifactOnly = process.argv.includes("--artifact-only");
 const launchMs = Number.parseInt(process.env.SKILL_MANAGER_PACKAGED_SMOKE_MS ?? "10000", 10);
 
 if (!Number.isFinite(launchMs) || launchMs < 1000) {
@@ -18,6 +19,12 @@ const executablePath = process.env.SKILL_MANAGER_PACKAGED_EXECUTABLE
 
 if (!fs.existsSync(executablePath)) {
   throw new Error(`Packaged executable not found: ${executablePath}`);
+}
+
+if (artifactOnly) {
+  await verifyExecutableArtifact(executablePath);
+  console.log(`Packaged executable artifact probe passed: ${executablePath}`);
+  process.exit(0);
 }
 
 const fixtureHome = await fs.promises.mkdtemp(path.join(os.tmpdir(), "skill-manager-packaged-home-"));
@@ -120,6 +127,27 @@ function scoreCandidate(candidate) {
   if (process.arch === "x64" && new RegExp(`${separator}(mac|win-unpacked|linux-unpacked)${separator}`).test(normalized)) return 0;
   if (normalized.includes("universal")) return 1;
   return 2;
+}
+
+async function verifyExecutableArtifact(filePath) {
+  const stat = await fs.promises.stat(filePath);
+  if (!stat.isFile()) throw new Error(`Packaged executable is not a file: ${filePath}`);
+  const isWindowsExecutable = path.extname(filePath).toLowerCase() === ".exe";
+  const minSize = isWindowsExecutable ? 1024 * 1024 : 16 * 1024;
+  if (stat.size < minSize) throw new Error(`Packaged executable is unexpectedly small: ${filePath}`);
+
+  if (isWindowsExecutable) {
+    const header = Buffer.alloc(2);
+    const handle = await fs.promises.open(filePath, "r");
+    try {
+      await handle.read(header, 0, header.length, 0);
+    } finally {
+      await handle.close();
+    }
+    if (header.toString("ascii") !== "MZ") {
+      throw new Error(`Windows executable header check failed: ${filePath}`);
+    }
+  }
 }
 
 function waitForSpawn(childProcess) {

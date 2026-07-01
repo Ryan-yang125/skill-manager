@@ -53,8 +53,11 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y xvfb
       - name: Smoke packaged app
-        if: runner.os != 'Linux'
+        if: runner.os == 'macOS'
         run: pnpm smoke:packaged
+      - name: Smoke packaged Windows artifact
+        if: runner.os == 'Windows'
+        run: node scripts/smoke-packaged.mjs --artifact-only
       - name: Smoke packaged app on Linux
         if: runner.os == 'Linux'
         run: xvfb-run -a pnpm smoke:packaged

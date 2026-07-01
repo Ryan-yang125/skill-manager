@@ -1,5 +1,7 @@
 .build/
 build/
+!apps/desktop/build/
+!apps/desktop/build/**
 dist/
 dist-electron/
 release-dist/
