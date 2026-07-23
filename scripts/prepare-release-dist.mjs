@@ -23,6 +23,13 @@ await copy(path.join(repoRoot, "docs", "screenshots", "electron-main.png"), path
 await copy(path.join(repoRoot, "docs", "screenshots", "electron-dark.png"), path.join(outputDir, "screenshot-dark.png"));
 await copy(path.join(repoRoot, "docs", "screenshots", "electron-compact.png"), path.join(outputDir, "screenshot-compact.png"));
 await copy(path.join(repoRoot, "docs", "releases", `v${version}-notes.md`), path.join(outputDir, `release-notes-v${version}.md`));
+await copy(path.join(repoRoot, "bin", "skill-manager.mjs"), path.join(outputDir, "skill-manager.mjs"));
+
+const cliPackageDir = path.join(repoRoot, "cli-dist");
+for (const entry of await fs.promises.readdir(cliPackageDir, { withFileTypes: true })) {
+  if (!entry.isFile() || !entry.name.endsWith(".tgz")) continue;
+  await copy(path.join(cliPackageDir, entry.name), path.join(outputDir, entry.name));
+}
 
 await writeChecksums();
 runVerifier();
@@ -62,7 +69,7 @@ async function sha256(filePath) {
 }
 
 function runVerifier() {
-  const result = spawnSync(process.execPath, [path.join(repoRoot, "scripts", "verify-release-assets.mjs"), outputDir], {
+  const result = spawnSync(process.execPath, [path.join(repoRoot, "scripts", "verify-release-assets.mjs"), outputDir, "--published"], {
     encoding: "utf8",
     stdio: "pipe"
   });

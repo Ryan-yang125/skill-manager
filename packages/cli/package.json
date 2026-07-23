@@ -1,0 +1,53 @@
+{
+  "name": "agent-skills-audit",
+  "version": "0.6.0",
+  "description": "Local-first audit, inspection, archive, and restore CLI for Agent Skills.",
+  "homepage": "https://ryan-yang125.github.io/skill-manager/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ryan-yang125/skill-manager.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/Ryan-yang125/skill-manager/issues"
+  },
+  "keywords": [
+    "agent-skills",
+    "claude-code",
+    "codex",
+    "local-first",
+    "skill-manager"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "agent-skills-audit": "dist/skill-manager.mjs",
+    "skill-manager": "dist/skill-manager.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "start": "pnpm build && node dist/skill-manager.mjs",
+    "build": "pnpm --filter @skill-manager/core build && node scripts/build.mjs",
+    "test": "vitest run",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "bundle": "pnpm build && node scripts/build.mjs ../../bin/skill-manager.mjs",
+    "pack:release": "pnpm build && node scripts/pack-release.mjs"
+  },
+  "devDependencies": {
+    "@skill-manager/core": "workspace:*",
+    "@types/node": "^22.19.3",
+    "esbuild": "^0.28.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
+  }
+}

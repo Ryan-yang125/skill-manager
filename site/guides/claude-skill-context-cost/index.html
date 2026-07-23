@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Claude Skill Context Cost: Catalog Estimate — Skill Manager</title>
+    <meta name="description" content="Understand what Agent Skill context estimates measure, how Skill Manager calculates discovery-text size, and how to review large Claude skill descriptions.">
+    <link rel="canonical" href="https://ryan-yang125.github.io/skill-manager/guides/claude-skill-context-cost/">
+    <link rel="icon" href="/skill-manager/assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/skill-manager/assets/styles.css">
+    <meta name="theme-color" content="#101d33">
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="Skill Manager">
+    <meta property="og:title" content="Claude Skill Catalog Context Estimate Explained">
+    <meta property="og:description" content="Measure Agent Skill discovery text and interpret the estimate with the right boundaries.">
+    <meta property="og:url" content="https://ryan-yang125.github.io/skill-manager/guides/claude-skill-context-cost/">
+    <meta property="og:image" content="https://ryan-yang125.github.io/skill-manager/assets/og-card.png">
+    <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          { "@type": "Article", "headline": "Claude Skill Catalog Context Estimate Explained", "url": "https://ryan-yang125.github.io/skill-manager/guides/claude-skill-context-cost/", "datePublished": "2026-07-23", "dateModified": "2026-07-23", "author": { "@type": "Organization", "name": "Skill Manager", "url": "https://github.com/Ryan-yang125/skill-manager" }, "description": "How Skill Manager estimates name-and-description discovery metadata for a Claude or shared Agent Skill." },
+          { "@type": "FAQPage", "mainEntity": [
+            { "@type": "Question", "name": "What does Skill Manager's context estimate measure?", "acceptedAnswer": { "@type": "Answer", "text": "It estimates tokens for the skill name and summary used in discovery. It helps compare metadata size across installed skills." } },
+            { "@type": "Question", "name": "Is the estimate an exact runtime token count?", "acceptedAnswer": { "@type": "Answer", "text": "It is a planning estimate. Runtime cost depends on the agent's loading behavior, the model tokenizer, loaded instruction content, and any referenced resources." } },
+            { "@type": "Question", "name": "Should I archive every large skill?", "acceptedAnswer": { "@type": "Answer", "text": "Size is one review signal. Keep a large skill when it has a clear purpose, trusted source, and workflow value." } }
+          ] },
+          { "@type": "BreadcrumbList", "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Skill Manager", "item": "https://ryan-yang125.github.io/skill-manager/" },
+            { "@type": "ListItem", "position": 2, "name": "Guides", "item": "https://ryan-yang125.github.io/skill-manager/guides/" },
+            { "@type": "ListItem", "position": 3, "name": "Claude Skill Catalog Context Estimate", "item": "https://ryan-yang125.github.io/skill-manager/guides/claude-skill-context-cost/" }
+          ] }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header"><div class="site-header__inner shell"><a class="brand" href="/skill-manager/" aria-label="Skill Manager home"><span class="brand__mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16M4 12h11M4 19h16" stroke="currentColor" stroke-width="2.5"/><path d="M18 9v6" stroke="#e85d36" stroke-width="2.5"/></svg></span>Skill Manager</a><nav class="site-nav" aria-label="Primary navigation"><a href="/skill-manager/#workflow">How it works</a><a href="/skill-manager/guides/" aria-current="page">Guides</a><a href="https://github.com/Ryan-yang125/skill-manager">GitHub</a><a class="nav-download" href="https://github.com/Ryan-yang125/skill-manager/releases/latest">Download</a></nav></div></header>
+    <main id="main">
+      <header class="guide-hero shell"><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/skill-manager/">Home</a><span>/</span><a href="/skill-manager/guides/">Guides</a><span>/</span><span aria-current="page">Catalog context</span></nav><p class="eyebrow">Guide · Claude skills</p><h1>How to estimate skill catalog context</h1><p class="lede">Understand what the name-and-description estimate measures, where its boundary sits, and how it supports a careful review.</p><div class="guide-meta"><span>Updated July 23, 2026</span><span>5 min read</span><span>Skill Manager project</span></div></header>
+      <div class="guide-layout shell">
+        <article class="article-body">
+          <div class="answer-block"><span class="answer-block__label">Direct answer</span><p>Skill Manager estimates discovery context from each skill's name and summary. It counts words, Unicode characters, and CJK characters to create a comparable token estimate across the inventory. Treat the result as a planning signal; runtime context also depends on agent loading behavior, model tokenization, full instructions, and referenced resources.</p></div>
+
+          <h2 id="meaning">What the estimate means</h2>
+          <p>Agent interfaces need enough metadata to decide which skill fits a request. A short, precise name and description make that discovery layer easier to scan. Skill Manager measures this layer so you can compare the aggregate footprint and find unusually verbose metadata.</p>
+          <p>The value does not claim an exact billable or runtime token count. Tokenizers vary by model, and agents can load skill content at different moments. A skill can also reference scripts, examples, and assets that remain outside the initial discovery text.</p>
+
+          <h2 id="calculation">How Skill Manager calculates it</h2>
+          <p>The current estimator joins the parsed skill name and summary, then derives three counts: Unicode scalar length, words separated by whitespace or punctuation, and CJK characters. Its Latin estimate uses the larger of the word count and one token per five characters, then adds one token for every two CJK characters.</p>
+          <div class="command-block"><div class="command-block__bar"><span>Inventory estimates</span><button class="copy-button" type="button" data-copy="npx github:Ryan-yang125/skill-manager audit --json" aria-label="Copy JSON audit command">Copy</button></div><pre><code><span class="prompt">$</span> npx github:Ryan-yang125/skill-manager audit --json</code></pre></div>
+          <p>Use JSON output when you want to sort, track, or compare estimates over time. The report preserves the estimate as an integer for each skill and aggregates it across the inventory.</p>
+
+          <h2 id="interpret">Read size alongside value</h2>
+          <div class="table-wrap"><table><thead><tr><th>Observation</th><th>Useful next step</th></tr></thead><tbody>
+            <tr><td>Large summary with clear usage evidence</td><td>Edit for clarity when you own the source; keep the capability available</td></tr>
+            <tr><td>Large summary and overlapping skill</td><td>Compare both sources and choose one canonical description</td></tr>
+            <tr><td>Small summary with vague wording</td><td>Clarify triggers and outcomes; brevity alone carries limited value</td></tr>
+            <tr><td>Zero evidence and partial log coverage</td><td>Expand coverage or observe longer before an archive decision</td></tr>
+          </tbody></table></div>
+
+          <h2 id="improve">Improve the discovery text</h2>
+          <ul class="checklist"><li>Name the user request that should trigger the skill.</li><li>State the concrete outcome the skill produces.</li><li>Keep setup detail inside the full instructions.</li><li>Remove repeated synonyms that add little routing value.</li><li>Re-run the audit and compare the inventory estimate.</li></ul>
+          <p class="inline-note"><strong>Scope rule:</strong> Skill Manager's number models name-and-summary discovery text. Use a model-specific tokenizer and observed agent behavior when you need a full runtime measurement.</p>
+
+          <section class="faq" aria-labelledby="faq-title"><h2 id="faq-title">Catalog context FAQ</h2><details><summary>What does the catalog context estimate measure?</summary><p>It estimates tokens for the skill name and summary used in discovery, giving the inventory a consistent comparison metric.</p></details><details><summary>Is it an exact runtime token count?</summary><p>It is a planning estimate. Runtime cost depends on agent loading behavior, model tokenizer, full instruction content, and referenced resources.</p></details><details><summary>Should I archive every large skill?</summary><p>Size is one review signal. Keep a large skill when its purpose, provenance, and workflow value are clear.</p></details></section>
+          <div class="article-cta"><h2>Measure your discovery layer</h2><p>Run the JSON audit and compare context estimates across every local skill root.</p><a class="button" href="/skill-manager/#run">Run Skill Manager</a></div>
+        </article>
+        <aside class="toc" aria-label="On this page"><p class="toc__title">On this page</p><ol><li><a href="#meaning">What it means</a></li><li><a href="#calculation">How it is calculated</a></li><li><a href="#interpret">Read size with value</a></li><li><a href="#improve">Improve metadata</a></li><li><a href="#faq-title">FAQ</a></li></ol></aside>
+      </div>
+    </main>
+    <footer class="site-footer"><div class="shell"><div class="site-footer__grid"><div><a class="brand" href="/skill-manager/"><span class="brand__mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16M4 12h11M4 19h16" stroke="currentColor" stroke-width="2.5"/><path d="M18 9v6" stroke="#e85d36" stroke-width="2.5"/></svg></span>Skill Manager</a><p class="site-footer__copy">A local-first inventory and health check for agent skills. Built in the open under the MIT License.</p></div><nav class="footer-links" aria-label="Footer navigation"><a href="/skill-manager/guides/">Guides</a><a href="/skill-manager/pricing.md">Pricing</a><a href="https://github.com/Ryan-yang125/skill-manager">Source code</a><a href="https://github.com/Ryan-yang125/skill-manager/releases/latest">Releases</a><a href="https://github.com/Ryan-yang125/skill-manager/blob/main/docs/privacy.md">Privacy</a><a href="https://github.com/Ryan-yang125/skill-manager/issues">Issues</a></nav></div><div class="footer-base"><span>© <span data-current-year>2026</span> Skill Manager</span><span>Local-first · Free forever · MIT</span></div></div></footer>
+    <script src="/skill-manager/assets/site.js" defer></script>
+  </body>
+</html>

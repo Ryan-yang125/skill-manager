@@ -1,0 +1,5 @@
+Contact: https://github.com/Ryan-yang125/skill-manager/security/advisories/new
+Expires: 2027-07-23T23:59:59Z
+Preferred-Languages: en, zh
+Canonical: https://ryan-yang125.github.io/skill-manager/.well-known/security.txt
+Policy: https://github.com/Ryan-yang125/skill-manager/security/policy

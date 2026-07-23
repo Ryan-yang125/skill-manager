@@ -73,15 +73,41 @@ export async function directorySize(dirPath: string, blocked = blockedDirectoryN
 
 export async function hashPath(inputPath: string): Promise<string | null> {
   try {
-    const stat = await fs.promises.stat(inputPath);
     const hash = createHash("sha256");
-    hash.update(inputPath);
-    hash.update(String(stat.size));
-    hash.update(String(stat.mtimeMs));
+    await hashEntry(inputPath, ".", hash);
     return hash.digest("hex");
   } catch {
     return null;
   }
+}
+
+async function hashEntry(
+  absolutePath: string,
+  relativePath: string,
+  hash: ReturnType<typeof createHash>
+): Promise<void> {
+  const stat = await fs.promises.lstat(absolutePath);
+  const portablePath = relativePath.split(path.sep).join("/");
+  if (stat.isSymbolicLink()) {
+    hash.update(`link\0${portablePath}\0${await fs.promises.readlink(absolutePath)}\0`);
+    return;
+  }
+  if (stat.isDirectory()) {
+    hash.update(`directory\0${portablePath}\0`);
+    const entries = await fs.promises.readdir(absolutePath, { withFileTypes: true });
+    entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    for (const entry of entries) {
+      await hashEntry(path.join(absolutePath, entry.name), path.join(relativePath, entry.name), hash);
+    }
+    return;
+  }
+  if (stat.isFile()) {
+    hash.update(`file\0${portablePath}\0${stat.size}\0`);
+    for await (const chunk of fs.createReadStream(absolutePath)) hash.update(chunk as Buffer);
+    hash.update("\0");
+    return;
+  }
+  hash.update(`other\0${portablePath}\0`);
 }
 
 export const blockedDirectoryNames = new Set([

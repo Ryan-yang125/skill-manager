@@ -16,9 +16,16 @@ export interface UsageEvidence {
   sessionPath: string;
   sessionKind: SessionKind;
   occurredAt: string | null;
+  timestampSource?: "event" | "file_mtime";
   detail: string;
   matchedText: string;
   confidence: "high" | "medium" | "low";
+}
+
+export interface UsageEvidenceAudit {
+  ambiguousMatchesExcluded: number;
+  timestampFallbackCount: number;
+  warnings: string[];
 }
 
 export interface UsageHit {
@@ -32,6 +39,10 @@ export interface UsageSessionRootAudit {
   agent: SkillAgent;
   exists: boolean;
   logCount: number;
+  eligibleLogCount?: number;
+  oversizedLogCount?: number;
+  excludedByFileLimitCount?: number;
+  timeWindowDays?: number | null;
 }
 
 export interface SkillPackageMetadata {
@@ -99,7 +110,7 @@ export interface ArchivedSkill {
   restoredAt: string | null;
   agent: SkillAgent;
   sizeBytes: number;
-  operationStatus: "archived" | "restored" | "failed";
+  operationStatus: "archiving" | "archived" | "restoring" | "restored" | "failed";
   failureReason: string | null;
   contentHashBefore: string | null;
   contentHashAfter: string | null;
@@ -117,6 +128,7 @@ export interface SkillInventory {
   scannedAt: string;
   audit: InventoryAuditReport;
   sessionRootAudits: UsageSessionRootAudit[];
+  usageEvidenceAudit?: UsageEvidenceAudit;
 }
 
 export interface InventoryAuditReport {

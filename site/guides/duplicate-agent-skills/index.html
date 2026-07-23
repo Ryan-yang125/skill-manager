@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>How to Find and Resolve Duplicate Agent Skills — Skill Manager</title>
+    <meta name="description" content="Find duplicate Agent Skills across ~/.agents, ~/.codex, and ~/.claude. Compare source, content, path, and usage before choosing a canonical copy.">
+    <link rel="canonical" href="https://ryan-yang125.github.io/skill-manager/guides/duplicate-agent-skills/">
+    <link rel="icon" href="/skill-manager/assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/skill-manager/assets/styles.css">
+    <meta name="theme-color" content="#101d33">
+    <meta property="og:type" content="article"><meta property="og:site_name" content="Skill Manager"><meta property="og:title" content="How to Resolve Duplicate Agent Skills"><meta property="og:description" content="Choose a canonical skill by comparing path, source, content, scope, and local evidence."><meta property="og:url" content="https://ryan-yang125.github.io/skill-manager/guides/duplicate-agent-skills/"><meta property="og:image" content="https://ryan-yang125.github.io/skill-manager/assets/og-card.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta name="twitter:card" content="summary_large_image">
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@graph":[
+        {"@type":"Article","headline":"How to Find and Resolve Duplicate Agent Skills","url":"https://ryan-yang125.github.io/skill-manager/guides/duplicate-agent-skills/","datePublished":"2026-07-23","dateModified":"2026-07-23","author":{"@type":"Organization","name":"Skill Manager","url":"https://github.com/Ryan-yang125/skill-manager"},"description":"A source-aware and recoverable workflow for duplicate local Agent Skills."},
+        {"@type":"FAQPage","mainEntity":[
+          {"@type":"Question","name":"What counts as a duplicate Agent Skill?","acceptedAnswer":{"@type":"Answer","text":"Two skills are candidates for duplicate review when they share a name, purpose, or substantially similar instructions across separate paths. Different agent-specific behavior can justify keeping both."}},
+          {"@type":"Question","name":"Which copy should I keep?","acceptedAnswer":{"@type":"Answer","text":"Prefer the copy with a trusted and maintained source, correct agent scope, current content, recent evidence, and a clear update route."}},
+          {"@type":"Question","name":"Can I delete the extra skill folder directly?","acceptedAnswer":{"@type":"Answer","text":"A ledger-backed archive preserves the original path and recovery data. It supports verification and quick restore if the archived copy is needed later."}}
+        ]},
+        {"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Skill Manager","item":"https://ryan-yang125.github.io/skill-manager/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://ryan-yang125.github.io/skill-manager/guides/"},{"@type":"ListItem","position":3,"name":"Duplicate Agent Skills","item":"https://ryan-yang125.github.io/skill-manager/guides/duplicate-agent-skills/"}]}
+      ]}
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header"><div class="site-header__inner shell"><a class="brand" href="/skill-manager/" aria-label="Skill Manager home"><span class="brand__mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16M4 12h11M4 19h16" stroke="currentColor" stroke-width="2.5"/><path d="M18 9v6" stroke="#e85d36" stroke-width="2.5"/></svg></span>Skill Manager</a><nav class="site-nav" aria-label="Primary navigation"><a href="/skill-manager/#workflow">How it works</a><a href="/skill-manager/guides/" aria-current="page">Guides</a><a href="https://github.com/Ryan-yang125/skill-manager">GitHub</a><a class="nav-download" href="https://github.com/Ryan-yang125/skill-manager/releases/latest">Download</a></nav></div></header>
+    <main id="main">
+      <header class="guide-hero shell"><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/skill-manager/">Home</a><span>/</span><a href="/skill-manager/guides/">Guides</a><span>/</span><span aria-current="page">Duplicates</span></nav><p class="eyebrow">Guide · Path conflicts</p><h1>How to resolve duplicate Agent Skills</h1><p class="lede">Choose one trusted source while preserving valid agent-specific variants and a clean recovery path.</p><div class="guide-meta"><span>Updated July 23, 2026</span><span>6 min read</span><span>Skill Manager project</span></div></header>
+      <div class="guide-layout shell">
+        <article class="article-body">
+          <div class="answer-block"><span class="answer-block__label">Direct answer</span><p>Resolve duplicate Agent Skills by grouping equal or similar names across <code>~/.agents/skills</code>, <code>~/.codex/skills</code>, and <code>~/.claude/skills</code>. Compare source metadata, instruction content, agent scope, update path, and local usage evidence. Keep the canonical copy and archive only the confirmed redundant path with recovery data.</p></div>
+
+          <h2 id="types">Three kinds of overlap</h2>
+          <div class="table-wrap"><table><thead><tr><th>Pattern</th><th>Meaning</th><th>Review</th></tr></thead><tbody>
+            <tr><td>Exact copy</td><td>Same purpose and matching content in two roots</td><td>Choose the path with the clearest ownership</td></tr>
+            <tr><td>Version drift</td><td>Same name with changed instructions or files</td><td>Identify the maintained source and inspect differences</td></tr>
+            <tr><td>Intentional variant</td><td>Shared name with agent-specific workflow details</td><td>Keep both when each has a defined consumer</td></tr>
+          </tbody></table></div>
+          <p>Name equality provides a useful first pass. Contents and scope determine the final decision. Two packages can reuse a generic name for different jobs, while renamed skills can contain nearly identical instructions.</p>
+
+          <h2 id="find">Find overlapping names and locations</h2>
+          <div class="command-block"><div class="command-block__bar"><span>Inventory all roots</span><button class="copy-button" type="button" data-copy="npx github:Ryan-yang125/skill-manager audit --json" aria-label="Copy JSON audit command">Copy</button></div><pre><code><span class="prompt">$</span> npx github:Ryan-yang125/skill-manager audit --json</code></pre></div>
+          <p>Group inventory records by normalized name, then inspect every location. Keep full paths in the report because a root determines which agent can discover the skill.</p>
+
+          <h2 id="compare">Compare the candidates</h2>
+          <ol><li><strong>Source:</strong> package ID, repository, plugin, and whether metadata was inferred.</li><li><strong>Scope:</strong> shared root or agent-specific root.</li><li><strong>Content:</strong> frontmatter, full instructions, scripts, references, and assets.</li><li><strong>Freshness:</strong> modification or package update time.</li><li><strong>Evidence:</strong> matched sessions, last reference, and coverage boundary.</li></ol>
+          <p>For an exact local comparison, hash the two files or compare their directories. A matching <code>SKILL.md</code> hash confirms that instruction text is equal at that moment; supporting scripts still need their own comparison.</p>
+          <div class="command-block"><div class="command-block__bar"><span>Compare two files</span><button class="copy-button" type="button" data-copy="shasum -a 256 /path/one/SKILL.md /path/two/SKILL.md" aria-label="Copy checksum command">Copy</button></div><pre><code><span class="prompt">$</span> shasum -a 256 /path/one/SKILL.md /path/two/SKILL.md</code></pre></div>
+
+          <h2 id="choose">Choose the canonical copy</h2>
+          <ul class="checklist"><li>Trusted, maintained source</li><li>Correct root for the intended agent</li><li>Current and readable instructions</li><li>Clear package update route</li><li>Usage evidence that matches the workflow</li></ul>
+          <p class="inline-note"><strong>Precedence rule:</strong> agent loading order can evolve. Preserve both paths in your comparison and verify behavior in the agent after archiving one candidate.</p>
+
+          <h2 id="verify">Archive and verify</h2>
+          <p>Preview one redundant path, archive it through the ledger, and re-run the inventory. Open the intended agent and exercise the workflow that uses the canonical copy. The archive remains available if a hidden dependency appears.</p>
+
+          <section class="faq" aria-labelledby="faq-title"><h2 id="faq-title">Duplicate skills FAQ</h2><details><summary>What counts as a duplicate Agent Skill?</summary><p>Skills with the same name, purpose, or substantially similar instructions are candidates for review. Agent-specific behavior can justify separate copies.</p></details><details><summary>Which copy should I keep?</summary><p>Prefer the copy with a trusted source, correct scope, current content, recent evidence, and a clear update route.</p></details><details><summary>Can I delete the extra folder directly?</summary><p>A ledger-backed archive preserves the original path and recovery data, giving you a verifiable restore route.</p></details></section>
+          <div class="article-cta"><h2>See every location</h2><p>Run the JSON audit, group matching names, and inspect provenance before changing a path.</p><a class="button" href="/skill-manager/#run">Run Skill Manager</a></div>
+        </article>
+        <aside class="toc" aria-label="On this page"><p class="toc__title">On this page</p><ol><li><a href="#types">Kinds of overlap</a></li><li><a href="#find">Find overlaps</a></li><li><a href="#compare">Compare candidates</a></li><li><a href="#choose">Choose canonical copy</a></li><li><a href="#verify">Archive and verify</a></li><li><a href="#faq-title">FAQ</a></li></ol></aside>
+      </div>
+    </main>
+    <footer class="site-footer"><div class="shell"><div class="site-footer__grid"><div><a class="brand" href="/skill-manager/"><span class="brand__mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16M4 12h11M4 19h16" stroke="currentColor" stroke-width="2.5"/><path d="M18 9v6" stroke="#e85d36" stroke-width="2.5"/></svg></span>Skill Manager</a><p class="site-footer__copy">A local-first inventory and health check for agent skills. Built in the open under the MIT License.</p></div><nav class="footer-links" aria-label="Footer navigation"><a href="/skill-manager/guides/">Guides</a><a href="/skill-manager/pricing.md">Pricing</a><a href="https://github.com/Ryan-yang125/skill-manager">Source code</a><a href="https://github.com/Ryan-yang125/skill-manager/releases/latest">Releases</a><a href="https://github.com/Ryan-yang125/skill-manager/blob/main/docs/privacy.md">Privacy</a><a href="https://github.com/Ryan-yang125/skill-manager/issues">Issues</a></nav></div><div class="footer-base"><span>© <span data-current-year>2026</span> Skill Manager</span><span>Local-first · Free forever · MIT</span></div></div></footer>
+    <script src="/skill-manager/assets/site.js" defer></script>
+  </body>
+</html>

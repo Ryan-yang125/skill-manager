@@ -1,0 +1,52 @@
+# Skill Manager
+
+> Skill Manager is a local-first, free, open-source inventory and health check for Agent Skills installed for Codex, Claude, and shared agent environments.
+
+Skill Manager scans supported global skill roots, records path and package provenance, matches local session evidence, estimates the catalog context formed by each skill name and description, and provides ledger-backed archive and restore workflows. Inventory, usage analysis, archive, restore, and report export run locally. The project uses the MIT License and has one free plan at $0 forever.
+
+## Run the CLI
+
+- Audit: `npx github:Ryan-yang125/skill-manager audit`
+- JSON report: `npx github:Ryan-yang125/skill-manager audit --json`
+- Markdown report: `npx github:Ryan-yang125/skill-manager audit --markdown`
+- Inspect: `npx github:Ryan-yang125/skill-manager inspect <skill-id> --json`
+- Archive preview: `npx github:Ryan-yang125/skill-manager archive <skill-id> --dry-run --json`
+- Restore: `npx github:Ryan-yang125/skill-manager restore <archive-id> --yes --json`
+
+## Install the Agent Skill
+
+- `npx skills add Ryan-yang125/skill-manager --skill audit-agent-skills -g -y`
+
+## Product facts
+
+- Supported global roots: `~/.agents/skills`, `~/.codex/skills`, `~/.claude/skills`
+- Supported desktop platforms: macOS, Windows, Linux
+- Local session evidence: recent and archived Codex sessions plus Claude project logs when available
+- Catalog context estimate: skill name and description only
+- Archive safety: durable local ledger, exact original path, overwrite guard, restore workflow
+- Telemetry: zero in the current public release
+- Price: $0 forever
+- License: MIT
+
+## Important interpretation rule
+
+Zero matched usage evidence describes the scanned local logs. It is a review signal. Session coverage may be incomplete, and rare skills can remain essential.
+
+## Primary pages
+
+- [Home and CLI](https://ryan-yang125.github.io/skill-manager/)
+- [All guides](https://ryan-yang125.github.io/skill-manager/guides/)
+- [Agent Skills health check](https://ryan-yang125.github.io/skill-manager/guides/agent-skills-health-check/)
+- [Find unused Agent Skills safely](https://ryan-yang125.github.io/skill-manager/guides/find-unused-agent-skills/)
+- [Codex skill locations](https://ryan-yang125.github.io/skill-manager/guides/codex-skills-locations/)
+- [Claude skill catalog context](https://ryan-yang125.github.io/skill-manager/guides/claude-skill-context-cost/)
+- [Resolve duplicate Agent Skills](https://ryan-yang125.github.io/skill-manager/guides/duplicate-agent-skills/)
+- [Archive and restore Agent Skills](https://ryan-yang125.github.io/skill-manager/guides/archive-restore-agent-skills/)
+- [Pricing](https://ryan-yang125.github.io/skill-manager/pricing.md)
+
+## Project links
+
+- [Source repository](https://github.com/Ryan-yang125/skill-manager)
+- [Latest desktop release](https://github.com/Ryan-yang125/skill-manager/releases/latest)
+- [Privacy model](https://github.com/Ryan-yang125/skill-manager/blob/main/docs/privacy.md)
+- [Issue tracker](https://github.com/Ryan-yang125/skill-manager/issues)

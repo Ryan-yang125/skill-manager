@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>How to Find Unused Agent Skills Safely — Skill Manager</title>
+    <meta name="description" content="Find low-use Codex and Claude skills with local session evidence, coverage checks, duplicate analysis, and a reversible archive workflow.">
+    <link rel="canonical" href="https://ryan-yang125.github.io/skill-manager/guides/find-unused-agent-skills/">
+    <link rel="icon" href="/skill-manager/assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/skill-manager/assets/styles.css">
+    <meta name="theme-color" content="#101d33">
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="Skill Manager">
+    <meta property="og:title" content="How to Find Unused Agent Skills Safely">
+    <meta property="og:description" content="Use evidence coverage, recency, overlap, and recovery to review low-use skills.">
+    <meta property="og:url" content="https://ryan-yang125.github.io/skill-manager/guides/find-unused-agent-skills/">
+    <meta property="og:image" content="https://ryan-yang125.github.io/skill-manager/assets/og-card.png">
+    <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Article",
+            "headline": "How to Find Unused Agent Skills Safely",
+            "url": "https://ryan-yang125.github.io/skill-manager/guides/find-unused-agent-skills/",
+            "datePublished": "2026-07-23",
+            "dateModified": "2026-07-23",
+            "author": { "@type": "Organization", "name": "Skill Manager", "url": "https://github.com/Ryan-yang125/skill-manager" },
+            "description": "A cautious workflow for reviewing low-use Codex and Claude skills with local evidence."
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              { "@type": "Question", "name": "How can I tell whether an agent skill is unused?", "acceptedAnswer": { "@type": "Answer", "text": "Check local session references, evidence coverage, the skill's install age, duplicate copies, source trust, and its role in rare workflows. A zero-evidence result starts a review; it does not prove permanent disuse." } },
+              { "@type": "Question", "name": "Which local logs does Skill Manager inspect?", "acceptedAnswer": { "@type": "Answer", "text": "It inspects recent and archived Codex sessions plus Claude project logs when those folders exist and the log files fit the configured scan limits." } },
+              { "@type": "Question", "name": "What is the safest way to remove an unused skill?", "acceptedAnswer": { "@type": "Answer", "text": "Archive it with its original path and operation state recorded in a durable ledger. Run another audit, keep the archive for an observation period, and restore it if the workflow returns." } }
+            ]
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Skill Manager", "item": "https://ryan-yang125.github.io/skill-manager/" },
+              { "@type": "ListItem", "position": 2, "name": "Guides", "item": "https://ryan-yang125.github.io/skill-manager/guides/" },
+              { "@type": "ListItem", "position": 3, "name": "Find Unused Agent Skills", "item": "https://ryan-yang125.github.io/skill-manager/guides/find-unused-agent-skills/" }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header"><div class="site-header__inner shell"><a class="brand" href="/skill-manager/" aria-label="Skill Manager home"><span class="brand__mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16M4 12h11M4 19h16" stroke="currentColor" stroke-width="2.5"/><path d="M18 9v6" stroke="#e85d36" stroke-width="2.5"/></svg></span>Skill Manager</a><nav class="site-nav" aria-label="Primary navigation"><a href="/skill-manager/#workflow">How it works</a><a href="/skill-manager/guides/" aria-current="page">Guides</a><a href="https://github.com/Ryan-yang125/skill-manager">GitHub</a><a class="nav-download" href="https://github.com/Ryan-yang125/skill-manager/releases/latest">Download</a></nav></div></header>
+    <main id="main">
+      <header class="guide-hero shell">
+        <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/skill-manager/">Home</a><span>/</span><a href="/skill-manager/guides/">Guides</a><span>/</span><span aria-current="page">Unused skills</span></nav>
+        <p class="eyebrow">Guide · Usage evidence</p>
+        <h1>How to find unused Agent Skills safely</h1>
+        <p class="lede">Turn local session history into a review queue while preserving the rare tools that still matter.</p>
+        <div class="guide-meta"><span>Updated July 23, 2026</span><span>6 min read</span><span>Skill Manager project</span></div>
+      </header>
+      <div class="guide-layout shell">
+        <article class="article-body">
+          <div class="answer-block"><span class="answer-block__label">Direct answer</span><p>Find low-use Agent Skills by combining local session references, evidence coverage, install age, duplicate locations, source trust, and workflow purpose. A skill with zero matched evidence belongs in a review queue. Confirm its role, archive it through a recoverable ledger, and keep the archive through an observation period.</p></div>
+
+          <h2 id="why-counts">Why a usage count needs context</h2>
+          <p>Local logs provide valuable first-hand evidence: Codex reading a <code>SKILL.md</code>, an explicit skill load, or a Claude Skill tool invocation. That evidence only represents files available to the scanner. Old logs may have been deleted, large logs may exceed the scan limit, and some tools store history elsewhere.</p>
+          <p>The strongest candidate for review combines several signals: zero recent evidence, a clear replacement, old install or modification dates, duplicated instructions, and low personal value. Any single signal carries less confidence.</p>
+
+          <h2 id="audit">Build the review queue</h2>
+          <div class="command-block"><div class="command-block__bar"><span>Local audit</span><button class="copy-button" type="button" data-copy="npx github:Ryan-yang125/skill-manager audit" aria-label="Copy audit command">Copy</button></div><pre><code><span class="prompt">$</span> npx github:Ryan-yang125/skill-manager audit</code></pre></div>
+          <ol>
+            <li><strong>Check evidence coverage.</strong> Record which Codex and Claude session roots exist and the number of logs scanned.</li>
+            <li><strong>Filter for zero or stale evidence.</strong> Use the result as a candidate list.</li>
+            <li><strong>Compare duplicate locations.</strong> Keep the canonical source and review shadowed copies.</li>
+            <li><strong>Read the skill.</strong> Rare recovery, security, travel, and annual workflows can have long quiet periods.</li>
+            <li><strong>Confirm the archive set.</strong> Record the reason for each selection.</li>
+          </ol>
+
+          <h2 id="signals">Use a four-signal decision</h2>
+          <div class="table-wrap"><table><thead><tr><th>Evidence</th><th>Stronger review signal</th><th>Keep signal</th></tr></thead><tbody>
+            <tr><td>Usage</td><td>Zero matches across broad log coverage</td><td>Recent, traceable session references</td></tr>
+            <tr><td>Overlap</td><td>Same job and content in another trusted path</td><td>Unique instructions or agent-specific behavior</td></tr>
+            <tr><td>Source</td><td>Unknown or abandoned package</td><td>Maintained source with a clear update route</td></tr>
+            <tr><td>Purpose</td><td>Experiment ended and replacement confirmed</td><td>Defined rare or critical workflow</td></tr>
+          </tbody></table></div>
+          <p class="inline-note"><strong>Coverage rule:</strong> “No evidence found” accurately describes the scan result. Keep that wording in reports so future readers can see the boundary of the conclusion.</p>
+
+          <h2 id="archive">Archive, observe, restore</h2>
+          <p>A safe cleanup keeps the skill contents available. Skill Manager records the skill ID, original path, archive path, timestamp, content hashes, and operation status. Restore checks the original destination and protects an existing folder from overwrite.</p>
+          <ul class="checklist"><li>Archive a small confirmed batch.</li><li>Run a fresh inventory and open your common agent workflows.</li><li>Keep the archive through a useful observation period.</li><li>Restore quickly when a workflow needs the skill again.</li></ul>
+
+          <section class="faq" aria-labelledby="faq-title"><h2 id="faq-title">Unused skills FAQ</h2>
+            <details><summary>How can I tell whether an Agent Skill is unused?</summary><p>Check local session references, evidence coverage, install age, duplicate copies, source trust, and the role in rare workflows. Zero evidence starts a review and preserves room for human judgment.</p></details>
+            <details><summary>Which local logs does Skill Manager inspect?</summary><p>It inspects recent and archived Codex sessions plus Claude project logs when those folders exist and files fit the configured scan limits.</p></details>
+            <details><summary>What is the safest removal workflow?</summary><p>Archive with a durable ledger, scan again, observe your workflows, and restore to the recorded original path when needed.</p></details>
+          </section>
+          <div class="article-cta"><h2>Audit before you archive</h2><p>Generate the inventory, review evidence coverage, and make the final selection from a traceable report.</p><a class="button" href="/skill-manager/#run">Run Skill Manager</a></div>
+        </article>
+        <aside class="toc" aria-label="On this page"><p class="toc__title">On this page</p><ol><li><a href="#why-counts">Usage count limits</a></li><li><a href="#audit">Build a review queue</a></li><li><a href="#signals">Four-signal decision</a></li><li><a href="#archive">Archive and restore</a></li><li><a href="#faq-title">FAQ</a></li></ol></aside>
+      </div>
+    </main>
+    <footer class="site-footer"><div class="shell"><div class="site-footer__grid"><div><a class="brand" href="/skill-manager/"><span class="brand__mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16M4 12h11M4 19h16" stroke="currentColor" stroke-width="2.5"/><path d="M18 9v6" stroke="#e85d36" stroke-width="2.5"/></svg></span>Skill Manager</a><p class="site-footer__copy">A local-first inventory and health check for agent skills. Built in the open under the MIT License.</p></div><nav class="footer-links" aria-label="Footer navigation"><a href="/skill-manager/guides/">Guides</a><a href="/skill-manager/pricing.md">Pricing</a><a href="https://github.com/Ryan-yang125/skill-manager">Source code</a><a href="https://github.com/Ryan-yang125/skill-manager/releases/latest">Releases</a><a href="https://github.com/Ryan-yang125/skill-manager/blob/main/docs/privacy.md">Privacy</a><a href="https://github.com/Ryan-yang125/skill-manager/issues">Issues</a></nav></div><div class="footer-base"><span>© <span data-current-year>2026</span> Skill Manager</span><span>Local-first · Free forever · MIT</span></div></div></footer>
+    <script src="/skill-manager/assets/site.js" defer></script>
+  </body>
+</html>

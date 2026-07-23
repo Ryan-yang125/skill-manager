@@ -12,10 +12,13 @@ import {
   SkillPackageStore,
   SkillScanner,
   UsageAnalyzer,
+  cleanupPlanReport,
   estimateTokens,
   normalizedPackageId,
   parseSkillMarkdown,
   safePathComponent,
+  type ArchivedSkill,
+  type UsageEvidence,
   type SkillRecord
 } from "../src/index.js";
 
@@ -183,7 +186,7 @@ describe("Skill scanner", () => {
         {
           count: 2,
           lastUsedAt: "2026-06-29T00:00:00.000Z",
-          evidence: []
+          evidence: [usageEvidenceFixture("agent-browser", "2026-06-29T00:00:00.000Z", "event")]
         }
       ]
     ]);
@@ -207,6 +210,68 @@ describe("Skill scanner", () => {
     expect(records).toHaveLength(3);
     expect(new Set(records.map((record) => record.path)).size).toBe(3);
     expect(records.map((record) => record.agent).sort()).toEqual(["agents", "claude", "codex"]);
+    expect(records.every((record) => record.recommendation === "review")).toBe(true);
+  });
+
+  it("keeps zero evidence in review and only suggests archive for old observed usage", async () => {
+    await writeSkill(".agents/skills/no-evidence", "no-evidence", "No local evidence fixture.");
+    await writeSkill(".agents/skills/old-evidence", "old-evidence", "Old local evidence fixture.");
+    const scanner = new SkillScanner({ homeDir: tempRoot });
+    const usage = new Map([
+      [
+        "old-evidence",
+        {
+          count: 1,
+          lastUsedAt: "2026-01-01T00:00:00.000Z",
+          evidence: [usageEvidenceFixture("old-evidence", "2026-01-01T00:00:00.000Z", "event")]
+        }
+      ]
+    ]);
+
+    const records = await scanner.scan(scanner.defaultRoots(), usage, new Date("2026-07-01T00:00:00.000Z"));
+
+    expect(records.find((record) => record.name === "no-evidence")?.recommendation).toBe("review");
+    expect(records.find((record) => record.name === "old-evidence")?.recommendation).toBe("archive");
+  });
+
+  it("keeps old file-mtime and provenance-free evidence in review", async () => {
+    await writeSkill(".agents/skills/mtime-evidence", "mtime-evidence", "File mtime evidence fixture.");
+    await writeSkill(".agents/skills/missing-provenance", "missing-provenance", "Missing provenance fixture.");
+    await writeSkill(".agents/skills/mixed-provenance", "mixed-provenance", "Mixed provenance fixture.");
+    const scanner = new SkillScanner({ homeDir: tempRoot });
+    const usage = new Map([
+      [
+        "mtime-evidence",
+        {
+          count: 1,
+          lastUsedAt: "2026-01-01T00:00:00.000Z",
+          evidence: [usageEvidenceFixture("mtime-evidence", "2026-01-01T00:00:00.000Z", "file_mtime")]
+        }
+      ],
+      [
+        "missing-provenance",
+        {
+          count: 1,
+          lastUsedAt: "2026-01-01T00:00:00.000Z",
+          evidence: [{ ...usageEvidenceFixture("missing-provenance", "2026-01-01T00:00:00.000Z", "event"), timestampSource: undefined }]
+        }
+      ],
+      [
+        "mixed-provenance",
+        {
+          count: 2,
+          lastUsedAt: "2026-01-02T00:00:00.000Z",
+          evidence: [
+            usageEvidenceFixture("mixed-provenance", "2026-01-02T00:00:00.000Z", "event"),
+            usageEvidenceFixture("mixed-provenance", "2026-01-01T00:00:00.000Z", "file_mtime")
+          ]
+        }
+      ]
+    ]);
+
+    const records = await scanner.scan(scanner.defaultRoots(), usage, new Date("2026-07-01T00:00:00.000Z"));
+
+    expect(records.map((record) => record.recommendation)).toEqual(["review", "review", "review"]);
   });
 });
 
@@ -235,8 +300,8 @@ describe("Usage analyzer", () => {
     const analyzer = new UsageAnalyzer({ homeDir: tempRoot });
     const usage = await analyzer.analyzeSkillUsage(skills);
 
-    expect(usage.get("agent-browser")?.count).toBe(2);
-    expect(usage.get("agent-browser")?.evidence.map((item) => item.sessionKind).sort()).toEqual(["active", "archived"]);
+    expect(usage.get(skill.id)?.count).toBe(2);
+    expect(usage.get(skill.id)?.evidence.map((item) => item.sessionKind).sort()).toEqual(["active", "archived"]);
     const audits = await analyzer.sessionRootAudits();
     expect(audits.find((audit) => audit.path === archiveDir)?.logCount).toBe(1);
   });
@@ -254,8 +319,8 @@ describe("Usage analyzer", () => {
 
     const usage = await new UsageAnalyzer({ homeDir: tempRoot }).analyzeSkillUsage(skills);
 
-    expect(usage.get("ai-promo-video-kit")?.count).toBe(1);
-    expect(usage.get("ai-promo-video-kit")?.evidence[0]?.kind).toBe("claudeSkillTool");
+    expect(usage.get(skills[0]!.id)?.count).toBe(1);
+    expect(usage.get(skills[0]!.id)?.evidence[0]?.kind).toBe("claudeSkillTool");
   });
 
   it("counts repeated matches on one log line once", async () => {
@@ -277,8 +342,77 @@ describe("Usage analyzer", () => {
 
     const usage = await new UsageAnalyzer({ homeDir: tempRoot }).analyzeSkillUsage(skills);
 
-    expect(usage.get("agent-browser")?.count).toBe(1);
-    expect(usage.get("agent-browser")?.evidence).toHaveLength(1);
+    expect(usage.get(skill.id)?.count).toBe(1);
+    expect(usage.get(skill.id)?.evidence).toHaveLength(1);
+  });
+
+  it("uses the JSONL event timestamp ahead of the log file modification time", async () => {
+    await writeSkill(".agents/skills/timestamped", "timestamped", "Timestamp fixture.");
+    const scanner = new SkillScanner({ homeDir: tempRoot });
+    const skills = await scanner.scan(scanner.defaultRoots(), new Map(), new Date("2026-07-01T00:00:00.000Z"));
+    const skill = skills[0]!;
+    const archiveDir = path.join(tempRoot, ".codex", "archived_sessions");
+    await fs.promises.mkdir(archiveDir, { recursive: true });
+    const event = { ...codexExecLine(`cat ${skill.skillFilePath}`), timestamp: "2026-02-03T04:05:06.000Z" };
+    const logPath = path.join(archiveDir, "timestamped.jsonl");
+    await writeJsonl(logPath, event);
+    const recentMtime = new Date("2026-07-01T00:00:00.000Z");
+    await fs.promises.utimes(logPath, recentMtime, recentMtime);
+
+    const analyzer = new UsageAnalyzer({ homeDir: tempRoot });
+    const usage = await analyzer.analyzeSkillUsage(skills);
+
+    expect(usage.get(skill.id)?.lastUsedAt).toBe("2026-02-03T04:05:06.000Z");
+    expect(usage.get(skill.id)?.evidence[0]?.timestampSource).toBe("event");
+    expect(analyzer.analysisAudit().timestampFallbackCount).toBe(0);
+  });
+
+  it("attributes path evidence to one duplicate copy and excludes ambiguous name-only evidence", async () => {
+    await writeSkill(".agents/skills/shared", "shared", "Shared Agents copy.");
+    await writeSkill(".codex/skills/shared", "shared", "Shared Codex copy.");
+    const scanner = new SkillScanner({ homeDir: tempRoot });
+    const skills = await scanner.scan(scanner.defaultRoots(), new Map(), new Date("2026-07-01T00:00:00.000Z"));
+    const codexSkill = skills.find((skill) => skill.agent === "codex")!;
+    const agentsSkill = skills.find((skill) => skill.agent === "agents")!;
+    const archiveDir = path.join(tempRoot, ".codex", "archived_sessions");
+    const claudeDir = path.join(tempRoot, ".claude", "projects", "project-a");
+    await fs.promises.mkdir(archiveDir, { recursive: true });
+    await fs.promises.mkdir(claudeDir, { recursive: true });
+    await writeJsonl(path.join(archiveDir, "path.jsonl"), codexExecLine(`cat ${codexSkill.skillFilePath}`));
+
+    const analyzer = new UsageAnalyzer({ homeDir: tempRoot });
+    const pathUsage = await analyzer.analyzeSkillUsage(skills);
+    expect(pathUsage.get(codexSkill.id)?.count).toBe(1);
+    expect(pathUsage.has(agentsSkill.id)).toBe(false);
+
+    await fs.promises.rm(path.join(archiveDir, "path.jsonl"));
+    await writeJsonl(path.join(claudeDir, "name.jsonl"), {
+      type: "message",
+      content: [{ type: "tool_use", name: "Skill", input: { skill: "shared" } }]
+    });
+    const ambiguousUsage = await analyzer.analyzeSkillUsage(skills);
+    expect(ambiguousUsage.size).toBe(0);
+    expect(analyzer.analysisAudit().ambiguousMatchesExcluded).toBe(1);
+    expect(analyzer.warningsBySkillId().get(codexSkill.id)?.[0]).toContain("ambiguous usage evidence");
+    expect(analyzer.warningsBySkillId().get(agentsSkill.id)?.[0]).toContain("ambiguous usage evidence");
+  });
+
+  it("reports time, size, and global file coverage limits", async () => {
+    const archiveDir = path.join(tempRoot, ".codex", "archived_sessions");
+    await fs.promises.mkdir(archiveDir, { recursive: true });
+    await fs.promises.writeFile(path.join(archiveDir, "small-a.jsonl"), "{}\n");
+    await fs.promises.writeFile(path.join(archiveDir, "small-b.jsonl"), "{}\n");
+    await fs.promises.writeFile(path.join(archiveDir, "oversized.jsonl"), "x".repeat(64));
+
+    const audits = await new UsageAnalyzer({ homeDir: tempRoot, maxLogBytes: 16, maxLogFiles: 1 }).sessionRootAudits();
+    const archivedAudit = audits.find((audit) => audit.path === archiveDir)!;
+    const activeAudit = audits.find((audit) => audit.path.endsWith(path.join(".codex", "sessions")))!;
+
+    expect(archivedAudit.eligibleLogCount).toBe(2);
+    expect(archivedAudit.logCount).toBe(1);
+    expect(archivedAudit.oversizedLogCount).toBe(1);
+    expect(archivedAudit.excludedByFileLimitCount).toBe(1);
+    expect(activeAudit.timeWindowDays).toBe(120);
   });
 });
 
@@ -291,13 +425,54 @@ describe("Archive store", () => {
 
     expect(await exists(skill.path)).toBe(false);
     expect(await exists(archived.archivePath)).toBe(true);
+    expect(archived.operationStatus).toBe("archived");
     expect((await store.archivedSkills())[0]?.originalPath).toBe(skill.path);
+    expect(archived.contentHashBefore).toBeTruthy();
+    expect(archived.contentHashAfter).toBe(archived.contentHashBefore);
 
     const restored = await store.restore(archived, new Date("2026-07-01T12:01:00.000Z"));
 
     expect(restored.operationStatus).toBe("restored");
+    expect(restored.contentHashAfter).toBe(archived.contentHashBefore);
     expect(await exists(skill.path)).toBe(true);
     expect(await store.archivedSkills()).toHaveLength(0);
+  });
+
+  it.each<ArchivedSkill["operationStatus"]>(["archiving", "restoring"])(
+    "keeps a recoverable %s entry visible without mutating its ledger",
+    async (operationStatus) => {
+      const skill = await fixtureSkillRecord();
+      const store = new ArchiveStore(path.join(tempRoot, "userData"));
+      const archived = await store.archive(skill, new Date("2026-07-01T12:00:00.000Z"));
+      const interrupted: ArchivedSkill = { ...archived, operationStatus };
+      await writeArchiveLedger(store, [interrupted]);
+      const ledgerBeforeRead = await fs.promises.readFile(store.ledgerPath, "utf8");
+
+      const visible = await store.archivedSkills();
+
+      expect(visible).toHaveLength(1);
+      expect(visible[0]?.operationStatus).toBe(operationStatus);
+      expect(await fs.promises.readFile(store.ledgerPath, "utf8")).toBe(ledgerBeforeRead);
+      const restored = await store.restore(visible[0]!, new Date("2026-07-01T12:01:00.000Z"));
+      expect(restored.operationStatus).toBe("restored");
+      expect(await exists(skill.path)).toBe(true);
+    }
+  );
+
+  it("treats a restoring entry with a completed move as effectively restored during read-only audit", async () => {
+    const skill = await fixtureSkillRecord();
+    const store = new ArchiveStore(path.join(tempRoot, "userData"));
+    const archived = await store.archive(skill, new Date("2026-07-01T12:00:00.000Z"));
+    const interrupted: ArchivedSkill = { ...archived, operationStatus: "restoring" };
+    await writeArchiveLedger(store, [interrupted]);
+    await fs.promises.mkdir(path.dirname(skill.path), { recursive: true });
+    await fs.promises.rename(archived.archivePath, skill.path);
+    const ledgerBeforeRead = await fs.promises.readFile(store.ledgerPath, "utf8");
+
+    expect(await store.archivedSkills()).toEqual([]);
+    expect(await fs.promises.readFile(store.ledgerPath, "utf8")).toBe(ledgerBeforeRead);
+    expect((await store.allLedgerEntries())[0]?.operationStatus).toBe("restoring");
+    expect(await exists(skill.path)).toBe(true);
   });
 
   it("fails restore clearly when the original path already exists", async () => {
@@ -310,6 +485,20 @@ describe("Archive store", () => {
       code: "restoreDestinationExists",
       pathValue: skill.path
     });
+  });
+
+  it("detects archived content changes before restore", async () => {
+    const skill = await fixtureSkillRecord();
+    const store = new ArchiveStore(path.join(tempRoot, "userData"));
+    const archived = await store.archive(skill, new Date("2026-07-01T12:00:00.000Z"));
+    await fs.promises.appendFile(path.join(archived.archivePath, "SKILL.md"), "\nchanged after archive\n");
+
+    await expect(store.restore(archived)).rejects.toMatchObject<Partial<ArchiveError>>({
+      code: "contentHashMismatch",
+      pathValue: archived.archivePath
+    });
+    expect(await exists(archived.archivePath)).toBe(true);
+    expect(await exists(skill.path)).toBe(false);
   });
 
   it("refuses to overwrite an existing archive destination", async () => {
@@ -334,6 +523,16 @@ describe("Cleanup reports and inventory service", () => {
     await writeSkill(".agents/skills/agent-browser", "agent-browser", "Browser automation CLI for AI agents.");
     await writeLockfile();
     const service = new InventoryService({ homeDir: tempRoot, userDataDir: path.join(tempRoot, "userData") });
+    const roughInventory = await service.loadInventory(new Date("2026-07-01T00:00:00.000Z"));
+    const archiveDir = path.join(tempRoot, ".codex", "archived_sessions");
+    await fs.promises.mkdir(archiveDir, { recursive: true });
+    const evidencePath = path.join(archiveDir, "old-agent-browser.jsonl");
+    await writeJsonl(evidencePath, {
+      ...codexExecLine(`cat ${roughInventory.active[0]!.skillFilePath}`),
+      timestamp: "2026-01-01T00:00:00.000Z"
+    });
+    const oldEvidenceDate = new Date("2026-01-01T00:00:00.000Z");
+    await fs.promises.utimes(evidencePath, oldEvidenceDate, oldEvidenceDate);
     const inventory = await service.loadInventory(new Date("2026-07-01T00:00:00.000Z"));
     const store = new CleanupReportStore(path.join(tempRoot, "userData"));
 
@@ -345,12 +544,37 @@ describe("Cleanup reports and inventory service", () => {
     expect(json.skills[0]?.packageSource).toBe("vercel-labs/agent-browser");
   });
 
+  it("keeps zero-evidence skills out of cleanup archive plans", async () => {
+    await writeSkill(".agents/skills/no-evidence", "no-evidence", "Review-only fixture.");
+    const service = new InventoryService({ homeDir: tempRoot, userDataDir: path.join(tempRoot, "userData") });
+    const inventory = await service.loadInventory(new Date("2026-07-01T00:00:00.000Z"));
+    const report = cleanupPlanReport(inventory, inventory.active, new Map(), new Date("2026-07-01T00:00:00.000Z"));
+
+    expect(inventory.active[0]?.recommendation).toBe("review");
+    expect(inventory.audit.suggestedArchiveCount).toBe(0);
+    expect(report.selectedCount).toBe(0);
+    expect(report.skills).toEqual([]);
+  });
+
   it("excludes protected and review-later skills from archive candidates", async () => {
     await writeSkill(".agents/skills/protected-skill", "protected-skill", "Protected helper.");
     await writeSkill(".agents/skills/review-skill", "review-skill", "Review helper.");
     await writeSkill(".agents/skills/archive-skill", "archive-skill", "Archive helper.");
     const service = new InventoryService({ homeDir: tempRoot, userDataDir: path.join(tempRoot, "userData") });
     let inventory = await service.loadInventory(new Date("2026-07-01T00:00:00.000Z"));
+    const archiveDir = path.join(tempRoot, ".codex", "archived_sessions");
+    await fs.promises.mkdir(archiveDir, { recursive: true });
+    const evidencePath = path.join(archiveDir, "old-evidence.jsonl");
+    await writeJsonl(
+      evidencePath,
+      {
+        ...codexExecLine(inventory.active.map((skill) => `cat ${skill.skillFilePath}`).join(" && ")),
+        timestamp: "2026-01-01T00:00:00.000Z"
+      }
+    );
+    const oldEvidenceDate = new Date("2026-01-01T00:00:00.000Z");
+    await fs.promises.utimes(evidencePath, oldEvidenceDate, oldEvidenceDate);
+    inventory = await service.loadInventory(new Date("2026-07-01T00:00:00.000Z"));
     await service.setDecision(inventory.active.find((skill) => skill.name === "protected-skill")!.id, "protected");
     await service.setDecision(inventory.active.find((skill) => skill.name === "review-skill")!.id, "review");
 
@@ -434,8 +658,33 @@ function codexExecLine(command: string): object {
   };
 }
 
+function usageEvidenceFixture(
+  skillName: string,
+  occurredAt: string,
+  timestampSource: "event" | "file_mtime"
+): UsageEvidence {
+  return {
+    id: `${skillName}-${timestampSource}`,
+    skillName,
+    agent: "codex",
+    kind: "codexSkillRead",
+    sessionPath: "/tmp/session.jsonl",
+    sessionKind: "archived",
+    occurredAt,
+    timestampSource,
+    detail: "Test evidence",
+    matchedText: skillName,
+    confidence: "high"
+  };
+}
+
 async function writeJsonl(filePath: string, object: object): Promise<void> {
   await fs.promises.writeFile(filePath, `${JSON.stringify(object)}\n`);
+}
+
+async function writeArchiveLedger(store: ArchiveStore, entries: ArchivedSkill[]): Promise<void> {
+  await fs.promises.mkdir(path.dirname(store.ledgerPath), { recursive: true });
+  await fs.promises.writeFile(store.ledgerPath, `${JSON.stringify({ entries }, null, 2)}\n`);
 }
 
 async function fixtureSkillRecord(): Promise<SkillRecord> {

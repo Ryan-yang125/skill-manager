@@ -51,14 +51,14 @@ Code-signed Windows builds can be added when a Trusted Signing, OV certificate, 
 Make the AppImage executable:
 
 ```bash
-chmod +x SkillManager-0.5.0-x64.AppImage
-./SkillManager-0.5.0-x64.AppImage
+chmod +x SkillManager-0.6.0-x64.AppImage
+./SkillManager-0.6.0-x64.AppImage
 ```
 
 For deb installs:
 
 ```bash
-sudo apt install ./SkillManager-0.5.0-x64.deb
+sudo apt install ./SkillManager-0.6.0-x64.deb
 ```
 
 ## Reset Local App State

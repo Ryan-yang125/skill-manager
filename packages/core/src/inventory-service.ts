@@ -34,7 +34,11 @@ export class InventoryService {
     const roots = this.scanner.defaultRoots();
     const roughSkills = await this.scanner.scan(roots, new Map(), now);
     const usage = await this.usageAnalyzer.analyzeSkillUsage(roughSkills);
-    const active = await this.scanner.scan(roots, usage, now);
+    const usageWarnings = this.usageAnalyzer.warningsBySkillId();
+    const active = (await this.scanner.scan(roots, usage, now)).map((skill) => ({
+      ...skill,
+      scanWarnings: [...skill.scanWarnings, ...(usageWarnings.get(skill.id) ?? [])]
+    }));
     const decisions = await this.decisionStore.all();
     const activeWithDecisions = active.map((skill) => applyDecision(skill, decisions.get(skill.id)));
     const archived = await this.archiveStore.archivedSkills();
@@ -45,7 +49,8 @@ export class InventoryService {
       archived,
       scannedAt: now.toISOString(),
       audit,
-      sessionRootAudits
+      sessionRootAudits,
+      usageEvidenceAudit: this.usageAnalyzer.analysisAudit()
     };
   }
 

@@ -9,7 +9,7 @@ interface ArchiveFile {
 }
 
 export class ArchiveError extends Error {
-  readonly code: "originalMissing" | "archiveMissing" | "archiveDestinationExists" | "restoreDestinationExists";
+  readonly code: "originalMissing" | "archiveMissing" | "archiveDestinationExists" | "restoreDestinationExists" | "contentHashMismatch";
   readonly pathValue: string;
 
   constructor(code: ArchiveError["code"], pathValue: string) {
@@ -17,7 +17,8 @@ export class ArchiveError extends Error {
       originalMissing: `Skill folder is missing: ${pathValue}`,
       archiveMissing: `Archive folder is missing: ${pathValue}`,
       archiveDestinationExists: `Archive destination already exists: ${pathValue}`,
-      restoreDestinationExists: `Restore destination already exists: ${pathValue}`
+      restoreDestinationExists: `Restore destination already exists: ${pathValue}`,
+      contentHashMismatch: `Archived Skill content hash does not match the ledger: ${pathValue}`
     };
     super(messages[code]);
     this.name = "ArchiveError";
@@ -37,8 +38,12 @@ export class ArchiveStore {
 
   async archivedSkills(): Promise<ArchivedSkill[]> {
     const file = await readJson<ArchiveFile>(this.ledgerPath, { entries: [] });
-    return file.entries
-      .filter((entry) => entry.operationStatus === "archived")
+    const visible = await Promise.all(
+      file.entries.map(async (entry) => ({ entry, visible: await isVisibleArchivedEntry(entry) }))
+    );
+    return visible
+      .filter((item) => item.visible)
+      .map((item) => item.entry)
       .sort((a, b) => b.archivedAt.localeCompare(a.archivedAt));
   }
 
@@ -73,7 +78,7 @@ export class ArchiveStore {
       restoredAt: null,
       agent: skill.agent,
       sizeBytes: skill.sizeBytes,
-      operationStatus: "archived",
+      operationStatus: "archiving",
       failureReason: null,
       contentHashBefore,
       contentHashAfter: null
@@ -85,10 +90,13 @@ export class ArchiveStore {
     try {
       await fs.promises.rename(skill.path, destination);
       entry.contentHashAfter = await hashPath(destination);
+      entry.operationStatus = "archived";
       await saveLedger(this.ledgerPath, replaceEntry(entries, entry));
       return entry;
     } catch (error) {
-      entry.operationStatus = "failed";
+      const archiveExists = await pathExists(destination);
+      const originalExists = await pathExists(skill.path);
+      entry.operationStatus = archiveExists && !originalExists ? "archiving" : "failed";
       entry.failureReason = error instanceof Error ? error.message : String(error);
       await saveLedger(this.ledgerPath, replaceEntry(entries, entry));
       throw error;
@@ -102,20 +110,56 @@ export class ArchiveStore {
     if (await pathExists(archived.originalPath)) {
       throw new ArchiveError("restoreDestinationExists", archived.originalPath);
     }
+    const archivedContentHash = await hashPath(archived.archivePath);
+    const expectedContentHash = archived.contentHashAfter ?? archived.contentHashBefore;
+    if (expectedContentHash && archivedContentHash !== expectedContentHash) {
+      throw new ArchiveError("contentHashMismatch", archived.archivePath);
+    }
 
     await fs.promises.mkdir(path.dirname(archived.originalPath), { recursive: true });
-    await fs.promises.rename(archived.archivePath, archived.originalPath);
-    const restored: ArchivedSkill = {
-      ...archived,
-      restoredAt: now.toISOString(),
-      operationStatus: "restored",
-      failureReason: null,
-      contentHashAfter: await hashPath(archived.originalPath)
-    };
     const entries = await this.allLedgerEntries();
-    await saveLedger(this.ledgerPath, replaceEntry(entries, restored));
-    return restored;
+    const restoring: ArchivedSkill = {
+      ...archived,
+      operationStatus: "restoring",
+      failureReason: null
+    };
+    await saveLedger(this.ledgerPath, replaceEntry(entries, restoring));
+    try {
+      await fs.promises.rename(archived.archivePath, archived.originalPath);
+      const restored: ArchivedSkill = {
+        ...restoring,
+        restoredAt: now.toISOString(),
+        operationStatus: "restored",
+        failureReason: null,
+        contentHashAfter: await hashPath(archived.originalPath)
+      };
+      await saveLedger(this.ledgerPath, replaceEntry(entries, restored));
+      return restored;
+    } catch (error) {
+      const archiveExists = await pathExists(archived.archivePath);
+      const originalExists = await pathExists(archived.originalPath);
+      const recoverable: ArchivedSkill = {
+        ...restoring,
+        operationStatus: archiveExists && !originalExists ? "archived" : "restoring",
+        failureReason: error instanceof Error ? error.message : String(error)
+      };
+      await saveLedger(this.ledgerPath, replaceEntry(entries, recoverable));
+      throw error;
+    }
   }
+}
+
+async function isVisibleArchivedEntry(entry: ArchivedSkill): Promise<boolean> {
+  if (entry.operationStatus === "archived") return true;
+  if (entry.operationStatus !== "archiving" && entry.operationStatus !== "restoring") return false;
+  const [originalExists, archiveExists] = await Promise.all([
+    pathExists(entry.originalPath),
+    pathExists(entry.archivePath)
+  ]);
+  // Reading the ledger never repairs it. Filesystem state only decides whether
+  // an interrupted operation remains visible and recoverable as an archive.
+  if (archiveExists) return true;
+  return !originalExists;
 }
 
 async function saveLedger(filePath: string, entries: ArchivedSkill[]): Promise<void> {

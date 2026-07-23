@@ -1,0 +1,25 @@
+User-agent: *
+Allow: /skill-manager/
+
+User-agent: GPTBot
+Allow: /skill-manager/
+
+User-agent: ChatGPT-User
+Allow: /skill-manager/
+
+User-agent: PerplexityBot
+Allow: /skill-manager/
+
+User-agent: ClaudeBot
+Allow: /skill-manager/
+
+User-agent: anthropic-ai
+Allow: /skill-manager/
+
+User-agent: Google-Extended
+Allow: /skill-manager/
+
+User-agent: Bingbot
+Allow: /skill-manager/
+
+Sitemap: https://ryan-yang125.github.io/skill-manager/sitemap.xml

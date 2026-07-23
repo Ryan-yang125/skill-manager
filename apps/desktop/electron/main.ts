@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Menu, dialog, ipcMain, session, shell } from "electron";
+import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +11,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const isDev = Boolean(process.env.SKILL_MANAGER_DEV_SERVER_URL);
 const isSmoke = process.env.SKILL_MANAGER_SMOKE === "1";
 const { autoUpdater } = electronUpdater;
+
+app.setName("Skill Manager");
+if (isSmoke && process.env.SKILL_MANAGER_SMOKE_USER_DATA) {
+  app.setPath("userData", process.env.SKILL_MANAGER_SMOKE_USER_DATA);
+}
+if (isSmoke && process.env.SKILL_MANAGER_SMOKE_REPORT) {
+  fs.writeFileSync(
+    process.env.SKILL_MANAGER_SMOKE_REPORT,
+    `${JSON.stringify({ userData: app.getPath("userData") })}\n`
+  );
+}
 
 let mainWindow: BrowserWindow | null = null;
 let service: InventoryService | null = null;

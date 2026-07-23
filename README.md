@@ -1,91 +1,112 @@
 # Skill Manager
 
-Skill Manager is a local-first desktop app for browsing, understanding, and managing agent skills installed on your machine.
+[简体中文](README.zh-CN.md)
 
-It scans global skill folders, renders each `SKILL.md`, groups skills by package/source, estimates context cost, finds local usage evidence, and gives you safe archive and restore workflows.
+**Evidence-backed inventory and safe cleanup for Agent Skills.**
 
-![Skill Manager main window](docs/screenshots/electron-main.png)
+[![CI](https://github.com/Ryan-yang125/skill-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/Ryan-yang125/skill-manager/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Ryan-yang125/skill-manager/actions/workflows/codeql.yml/badge.svg)](https://github.com/Ryan-yang125/skill-manager/actions/workflows/codeql.yml)
+[![GitHub release](https://img.shields.io/github/v/release/Ryan-yang125/skill-manager)](https://github.com/Ryan-yang125/skill-manager/releases/latest)
+[![Skills.sh](https://img.shields.io/badge/skills.sh-audit--agent--skills-111827)](https://skills.sh/Ryan-yang125/skill-manager/audit-agent-skills)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2563eb)](LICENSE)
 
-## Supported Platforms
+Skill Manager scans the Agent Skills installed on your machine, shows where each one came from, estimates its catalog context cost, finds local Codex and Claude usage evidence, and keeps archive operations reversible.
 
-- macOS
-- Windows
-- Linux
+[Website](https://ryan-yang125.github.io/skill-manager/) · [Latest release](https://github.com/Ryan-yang125/skill-manager/releases/latest) · [Guides](https://ryan-yang125.github.io/skill-manager/guides/)
 
-## Supported Skill Roots
+![Skill Manager showing local skill evidence](docs/screenshots/electron-dark.png)
+
+## Run an audit
+
+Run the CLI directly from GitHub:
+
+```bash
+npx github:Ryan-yang125/skill-manager audit
+```
+
+Generate machine-readable output for an agent or script:
+
+```bash
+npx github:Ryan-yang125/skill-manager audit --json
+```
+
+The audit is read-only. It reports detected roots, evidence coverage, active and archived skills, source metadata, context estimates, last-seen evidence, and review candidates.
+
+## Install the Agent Skill
+
+Install `audit-agent-skills` with the open Skills CLI:
+
+```bash
+npx skills add Ryan-yang125/skill-manager --skill audit-agent-skills -g -y
+```
+
+Then ask your agent:
+
+> Audit my local Agent Skills and explain the evidence before suggesting cleanup.
+
+The Skill runs the JSON audit, explains coverage and uncertainty, asks for explicit confirmation before a write, and verifies the inventory after archive or restore.
+
+## CLI commands
+
+```text
+skill-manager audit [--json | --markdown]
+skill-manager inspect <skill>
+skill-manager archive <skill> --dry-run
+skill-manager archive <skill> --yes
+skill-manager restore <archive-id> --yes
+```
+
+Archive writes a durable ledger before moving a skill folder. Restore preserves the original path and refuses path conflicts.
+
+## Desktop app
+
+Download the current desktop package from [GitHub Releases](https://github.com/Ryan-yang125/skill-manager/releases/latest).
+
+Supported packages:
+
+- macOS Apple Silicon: dmg and zip
+- Windows x64: NSIS installer
+- Linux x64: AppImage and deb
+
+The desktop app adds a three-pane library, rendered `SKILL.md` content, package grouping, file previews, local evidence views, archive history, English and Chinese UI, and Mosaic light and dark themes.
+
+## Supported roots
 
 - `~/.agents/skills`
 - `~/.codex/skills`
 - `~/.claude/skills`
 
-Project-level skill folders are outside the current release scope.
+Project-level roots and additional hosts are tracked through the public [compatibility guides](https://ryan-yang125.github.io/skill-manager/guides/codex-skills-locations/).
 
-## Features
+## Evidence semantics
 
-- Installed skill library with sidebar filters.
-- Package grouping from `~/.agents/.skill-lock.json` plus local fallback grouping.
-- Search by name, package, description, source, and path.
-- Sort by latest added or usage count.
-- Rendered Markdown content view with frontmatter hidden.
-- Files tab with a compact file tree and preview.
-- Usage count, last used time, and local evidence from Codex and Claude session logs.
-- Archived Codex session coverage when local archived sessions exist.
-- Safe archive and restore with a durable local ledger.
-- Markdown and JSON cleanup reports.
-- English and Chinese UI.
-- Light and dark Mosaic themes.
-- Local-only inventory, archive, restore, and report export.
+Skill Manager reports what the configured local scan can support:
 
-## Install
+- `observed`: matching local session evidence was found.
+- `no_evidence`: the scan completed without a matching event.
+- `unknown`: coverage or parsing limits prevent a confident result.
 
-Download the latest release for your platform from:
+A cleanup recommendation always includes its evidence and coverage. Rare, critical, or manually installed skills remain review decisions for the user.
 
-https://github.com/Ryan-yang125/skill-manager/releases/latest
+## Privacy
 
-Release files:
+Inventory, evidence analysis, archive, restore, and report export run locally. The app and CLI send no telemetry. Update checks and user-opened HTTPS source links are the documented network surfaces.
 
-- macOS Apple Silicon: `SkillManager-0.5.0-arm64.dmg`
-- macOS zip: `SkillManager-0.5.0-mac-arm64.zip`
-- Windows: `SkillManager-0.5.0-x64.exe`
-- Linux AppImage: `SkillManager-0.5.0-x64.AppImage`
-- Linux deb: `SkillManager-0.5.0-x64.deb`
-- Checksums: `SHA256SUMS.txt`
-
-Verify a download:
-
-```bash
-shasum -a 256 SkillManager-0.5.0-arm64.dmg
-grep SkillManager-0.5.0-arm64.dmg SHA256SUMS.txt
-```
-
-macOS direct-download builds use ad-hoc signing. If Gatekeeper blocks first launch, right-click the app and choose Open.
-
-Windows direct-download builds may show a SmartScreen prompt until code signing is configured. Verify `SHA256SUMS.txt` before launching.
-
-Linux users can run the AppImage or install the deb package.
-
-## Build Locally
-
-```bash
-pnpm install
-pnpm lint
-pnpm test
-pnpm build
-pnpm package
-```
-
-The packaged output is written to:
-
-```text
-dist-electron/
-```
+See [docs/privacy.md](docs/privacy.md) and [SECURITY.md](SECURITY.md).
 
 ## Development
 
-Run the renderer only:
+```bash
+pnpm install --frozen-lockfile
+pnpm lint
+pnpm test
+pnpm build
+```
+
+Run the CLI locally:
 
 ```bash
-pnpm frontend
+pnpm cli -- audit
 ```
 
 Run the desktop app:
@@ -94,43 +115,15 @@ Run the desktop app:
 pnpm dev
 ```
 
-Run release gates:
+Release gates:
 
 ```bash
 pnpm release:local
 ```
 
-## Safety Model
+## Contributing
 
-- Skill scans read only the supported local roots and local session logs.
-- Archive writes a ledger before moving a skill folder.
-- Restore refuses to overwrite an existing original path.
-- Reports are written to the app data directory.
-- The renderer cannot access Node APIs directly.
-- Filesystem operations run through typed IPC in the Electron main process.
-- External links are limited to HTTPS package URLs.
-
-## Local Data
-
-Skill Manager stores app data under the platform-specific Electron `userData` directory.
-
-Typical files:
-
-- `archive-ledger.json`
-- `skill-decisions.json`
-- `cleanup-reports/`
-
-See [docs/privacy.md](docs/privacy.md) for the privacy model.
-
-## Documentation
-
-- [Product context](PRODUCT.md)
-- [Design system](DESIGN.md)
-- [Architecture](docs/architecture.md)
-- [Testing](docs/testing.md)
-- [Troubleshooting](docs/troubleshooting.md)
-- [Release runbook](docs/release-runbook.md)
-- [Security policy](SECURITY.md)
+Host adapters, anonymized evidence fixtures, accessibility improvements, translations, and focused bug fixes are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
 ## License
 

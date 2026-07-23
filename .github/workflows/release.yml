@@ -6,10 +6,44 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  metadata:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Verify tag matches package version
+        run: node -e "const version=require('./package.json').version; if (process.env.GITHUB_REF_NAME !== 'v' + version) throw new Error('Tag ' + process.env.GITHUB_REF_NAME + ' does not match package version ' + version)"
+
+  cli:
+    needs: metadata
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter agent-skills-audit lint
+      - run: pnpm --filter agent-skills-audit test
+      - run: pnpm cli:bundle
+      - run: pnpm cli:pack
+      - run: pnpm cli:verify-package
+      - run: node bin/skill-manager.mjs --help
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: skill-manager-cli
+          path: |
+            bin/skill-manager.mjs
+            cli-dist/*.tgz
+
   build:
+    needs: metadata
     strategy:
       fail-fast: false
       matrix:
@@ -28,11 +62,11 @@ jobs:
             artifact-suffix: linux-x64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
         with:
           version: 11.7.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm
@@ -64,7 +98,7 @@ jobs:
       - run: pnpm checksums
       - run: pnpm verify:artifacts
       - run: node scripts/verify-release-assets.mjs --platform=current
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: skill-manager-${{ matrix.artifact-suffix }}
           path: |
@@ -73,28 +107,38 @@ jobs:
             dist-electron/SHA256SUMS.txt
 
   publish:
-    needs: build
+    needs:
+      - build
+      - cli
     runs-on: ubuntu-24.04
+    permissions:
+      attestations: write
+      contents: write
+      id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: release-artifacts
       - name: Prepare release assets
         run: |
           mkdir -p release-dist
           find release-artifacts -type f \
-            \( -name 'SkillManager-*' -o -name 'latest*.yml' \) \
+            \( -name 'SkillManager-*' -o -name 'latest*.yml' -o -name '*.tgz' -o -name 'skill-manager.mjs' \) \
             -exec cp {} release-dist/ \;
           cp docs/screenshots/electron-main.png release-dist/screenshot-main.png
           cp docs/screenshots/electron-dark.png release-dist/screenshot-dark.png
           cp docs/screenshots/electron-compact.png release-dist/screenshot-compact.png
           cp docs/releases/v${GITHUB_REF_NAME#v}-notes.md release-dist/release-notes-${GITHUB_REF_NAME}.md
           (cd release-dist && sha256sum * > SHA256SUMS.txt)
-          node scripts/verify-release-assets.mjs release-dist
-      - name: Publish GitHub Release
-        uses: softprops/action-gh-release@v2
+          node scripts/verify-release-assets.mjs release-dist --published
+      - name: Attest release provenance
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
-          draft: true
+          subject-path: release-dist/*
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        with:
+          draft: false
           body_path: docs/releases/${{ github.ref_name }}-notes.md
           files: release-dist/*
