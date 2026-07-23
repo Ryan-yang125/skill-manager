@@ -6,6 +6,7 @@ import os2 from "node:os";
 import path10 from "node:path";
 
 // ../core/dist/archive-store.js
+import { createHash as createHash2 } from "node:crypto";
 import fs2 from "node:fs";
 import path2 from "node:path";
 
@@ -168,13 +169,10 @@ var ArchiveStore = class {
       throw new ArchiveError("originalMissing", skill.path);
     }
     await fs2.promises.mkdir(this.archiveRoot, { recursive: true });
-    const archiveId = `${fileDateString(now)}-${safePathComponent(skill.name)}`;
     const agentFolder = path2.join(this.archiveRoot, safePathComponent(skill.agent));
     await fs2.promises.mkdir(agentFolder, { recursive: true });
-    const destination = path2.join(agentFolder, archiveId);
-    if (await pathExists(destination)) {
-      throw new ArchiveError("archiveDestinationExists", destination);
-    }
+    const entries = await this.allLedgerEntries();
+    const { archiveId, destination } = await availableArchiveDestination(skill, now, agentFolder, entries);
     const contentHashBefore = await hashPath(skill.path);
     const entry = {
       id: archiveId,
@@ -192,7 +190,6 @@ var ArchiveStore = class {
       contentHashBefore,
       contentHashAfter: null
     };
-    const entries = await this.allLedgerEntries();
     entries.push(entry);
     await saveLedger(this.ledgerPath, entries);
     try {
@@ -277,7 +274,29 @@ function replaceEntry(entries, entry) {
 }
 function fileDateString(date) {
   const pad = (value) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+  const milliseconds = String(date.getMilliseconds()).padStart(3, "0");
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}-${milliseconds}`;
+}
+function archiveIdBase(skill, now) {
+  const agent = safePathComponent(skill.agent);
+  const name = safePathComponent(skill.name).slice(0, 80);
+  const pathHash = createHash2("sha256").update(skill.path).digest("hex").slice(0, 10);
+  return `${fileDateString(now)}-${agent}-${name}-${pathHash}`;
+}
+async function availableArchiveDestination(skill, now, agentFolder, entries) {
+  const base = archiveIdBase(skill, now);
+  for (let sequence = 1; sequence <= entries.length + 2; sequence += 1) {
+    const archiveId = sequence === 1 ? base : `${base}-${sequence}`;
+    const destination = path2.join(agentFolder, archiveId);
+    const ledgerCollision = entries.some((entry) => entry.id === archiveId);
+    const destinationExists = await pathExists(destination);
+    if (destinationExists && !ledgerCollision) {
+      throw new ArchiveError("archiveDestinationExists", destination);
+    }
+    if (!ledgerCollision && !destinationExists)
+      return { archiveId, destination };
+  }
+  throw new ArchiveError("archiveDestinationExists", path2.join(agentFolder, base));
 }
 
 // ../core/dist/decision-store.js

@@ -501,11 +501,50 @@ describe("Archive store", () => {
     expect(await exists(skill.path)).toBe(false);
   });
 
+  it("keeps cross-agent same-name archives unique within the same millisecond", async () => {
+    await writeSkill(".agents/skills/shared", "shared", "Shared Agents copy.");
+    await writeSkill(".codex/skills/shared", "shared", "Shared Codex copy.");
+    const scanner = new SkillScanner({ homeDir: tempRoot });
+    const skills = await scanner.scan(scanner.defaultRoots(), new Map(), new Date("2026-07-01T00:00:00.000Z"));
+    const agentsSkill = skills.find((skill) => skill.agent === "agents")!;
+    const codexSkill = skills.find((skill) => skill.agent === "codex")!;
+    const store = new ArchiveStore(path.join(tempRoot, "userData"));
+    const now = new Date(2026, 6, 1, 12, 0, 0, 123);
+
+    const agentsArchive = await store.archive(agentsSkill, now);
+    const codexArchive = await store.archive(codexSkill, now);
+    const ledger = await store.allLedgerEntries();
+
+    expect(agentsArchive.id).toMatch(/^20260701-120000-123-agents-shared-[a-f0-9]{10}$/);
+    expect(codexArchive.id).toMatch(/^20260701-120000-123-codex-shared-[a-f0-9]{10}$/);
+    expect(codexArchive.id).not.toBe(agentsArchive.id);
+    expect(codexArchive.archivePath).not.toBe(agentsArchive.archivePath);
+    expect(new Set(ledger.map((entry) => entry.id)).size).toBe(2);
+    expect(ledger).toHaveLength(2);
+    expect(await exists(agentsArchive.archivePath)).toBe(true);
+    expect(await exists(codexArchive.archivePath)).toBe(true);
+  });
+
+  it("adds a sequence when the same Skill is archived again at the same millisecond", async () => {
+    const skill = await fixtureSkillRecord();
+    const store = new ArchiveStore(path.join(tempRoot, "userData"));
+    const now = new Date(2026, 6, 1, 12, 0, 0, 123);
+    const first = await store.archive(skill, now);
+    await store.restore(first, new Date("2026-07-01T12:01:00.000Z"));
+
+    const second = await store.archive(skill, now);
+
+    expect(second.id).toBe(`${first.id}-2`);
+    expect((await store.allLedgerEntries()).map((entry) => entry.id).sort()).toEqual([first.id, second.id].sort());
+  });
+
   it("refuses to overwrite an existing archive destination", async () => {
     const skill = await fixtureSkillRecord();
     const store = new ArchiveStore(path.join(tempRoot, "userData"));
-    const now = new Date(2026, 6, 1, 12, 0, 0);
-    const destination = path.join(path.join(tempRoot, "userData"), "Archive", "agents", "20260701-120000-archive-me");
+    const now = new Date(2026, 6, 1, 12, 0, 0, 123);
+    const archived = await store.archive(skill, now);
+    await store.restore(archived, new Date("2026-07-01T12:01:00.000Z"));
+    const destination = `${archived.archivePath}-2`;
     await fs.promises.mkdir(destination, { recursive: true });
     await fs.promises.writeFile(path.join(destination, "sentinel.txt"), "keep");
 
