@@ -7,6 +7,7 @@ Skill Manager scans supported global skill roots, records path and package prove
 ## Run the CLI
 
 - Audit: `npx github:Ryan-yang125/skill-manager audit`
+- Homebrew install: `brew install Ryan-yang125/skill-manager/skill-manager`
 - JSON report: `npx github:Ryan-yang125/skill-manager audit --json`
 - Markdown report: `npx github:Ryan-yang125/skill-manager audit --markdown`
 - Inspect: `npx github:Ryan-yang125/skill-manager inspect <skill-id> --json`
@@ -48,5 +49,6 @@ Zero matched usage evidence describes the scanned local logs. It is a review sig
 
 - [Source repository](https://github.com/Ryan-yang125/skill-manager)
 - [Latest desktop release](https://github.com/Ryan-yang125/skill-manager/releases/latest)
+- [Homebrew tap](https://github.com/Ryan-yang125/homebrew-skill-manager)
 - [Privacy model](https://github.com/Ryan-yang125/skill-manager/blob/main/docs/privacy.md)
 - [Issue tracker](https://github.com/Ryan-yang125/skill-manager/issues)

@@ -32,6 +32,13 @@ npx github:Ryan-yang125/skill-manager audit --json
 
 The audit is read-only. It reports detected roots, evidence coverage, active and archived skills, source metadata, context estimates, last-seen evidence, and review candidates.
 
+Install the CLI with Homebrew for a persistent `skill-manager` command:
+
+```bash
+brew install Ryan-yang125/skill-manager/skill-manager
+skill-manager audit
+```
+
 ## Install the Agent Skill
 
 Install `audit-agent-skills` with the open Skills CLI:
