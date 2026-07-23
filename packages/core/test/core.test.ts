@@ -346,6 +346,21 @@ describe("Usage analyzer", () => {
     expect(usage.get(skill.id)?.evidence).toHaveLength(1);
   });
 
+  it("normalizes escaped Windows separators in nested command JSON", async () => {
+    await writeSkill(".agents/skills/windows-path", "windows-path", "Windows path fixture.");
+    const scanner = new SkillScanner({ homeDir: tempRoot });
+    const skills = await scanner.scan(scanner.defaultRoots(), new Map(), new Date("2026-07-01T00:00:00.000Z"));
+    const skill = skills[0]!;
+    const archiveDir = path.join(tempRoot, ".codex", "archived_sessions");
+    await fs.promises.mkdir(archiveDir, { recursive: true });
+    const escapedPath = skill.skillFilePath.replaceAll("/", "\\");
+    await writeJsonl(path.join(archiveDir, "windows-path.jsonl"), codexExecLine(`type ${escapedPath}`));
+
+    const usage = await new UsageAnalyzer({ homeDir: tempRoot }).analyzeSkillUsage(skills);
+
+    expect(usage.get(skill.id)?.count).toBe(1);
+  });
+
   it("uses the JSONL event timestamp ahead of the log file modification time", async () => {
     await writeSkill(".agents/skills/timestamped", "timestamped", "Timestamp fixture.");
     const scanner = new SkillScanner({ homeDir: tempRoot });

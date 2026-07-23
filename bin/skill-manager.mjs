@@ -1092,11 +1092,14 @@ function matchingTermsByName(observedSkillName, terms) {
   return [...terms.values()].filter((term) => term.skillName.toLocaleLowerCase() === normalized);
 }
 function matchingTermsByPath(observedText, terms) {
-  const slashText = observedText.replaceAll("\\", "/");
+  const slashText = normalizedEvidencePathText(observedText);
   return [...terms.values()].filter((term) => term.pathTerms.some((candidate) => {
-    const slashCandidate = candidate.replaceAll("\\", "/");
+    const slashCandidate = normalizedEvidencePathText(candidate);
     return slashCandidate.length > 0 && slashText.includes(slashCandidate);
   }));
+}
+function normalizedEvidencePathText(value) {
+  return value.replaceAll("\\", "/").replace(/\/{2,}/g, "/");
 }
 function isPotentialUsageLine(line) {
   return line.includes('"name":"Skill"') || line.includes('"name": "Skill"') || line.includes('"name":"loadSkill"') || line.includes('"name": "loadSkill"') || line.includes('"name":"load_skill"') || line.includes('"name": "load_skill"') || line.includes("SKILL.md") || line.includes("/skills/");
@@ -1820,7 +1823,7 @@ var package_default = {
     start: "pnpm build && node dist/skill-manager.mjs",
     build: "pnpm --filter @skill-manager/core build && node scripts/build.mjs",
     test: "vitest run",
-    lint: "tsc -p tsconfig.json --noEmit",
+    lint: "pnpm --filter @skill-manager/core build && tsc -p tsconfig.json --noEmit",
     bundle: "pnpm build && node scripts/build.mjs ../../bin/skill-manager.mjs",
     "pack:release": "pnpm build && node scripts/pack-release.mjs"
   },
