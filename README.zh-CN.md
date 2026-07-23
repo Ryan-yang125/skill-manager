@@ -22,6 +22,13 @@ npx github:Ryan-yang125/skill-manager audit --json
 
 审计流程保持只读，结果包含扫描根目录、证据覆盖范围、活跃与已归档 Skill、来源信息、最近证据和复核候选。
 
+通过 Homebrew 安装常驻 CLI：
+
+```bash
+brew install Ryan-yang125/skill-manager/skill-manager
+skill-manager audit
+```
+
 ## 安装 Agent Skill
 
 ```bash
