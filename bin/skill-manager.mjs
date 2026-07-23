@@ -1924,11 +1924,11 @@ async function runCli(argv, runtime = {}) {
 }
 function defaultUserDataDir(homeDir, platform = process.platform, env = process.env) {
   if (env.SKILL_MANAGER_DATA_DIR) return resolveInputPath(env.SKILL_MANAGER_DATA_DIR, homeDir, process.cwd());
-  if (platform === "darwin") return path10.join(homeDir, "Library", "Application Support", "Skill Manager");
+  if (platform === "darwin") return path10.posix.join(homeDir, "Library", "Application Support", "Skill Manager");
   if (platform === "win32") {
     return path10.win32.join(env.APPDATA ?? path10.win32.join(homeDir, "AppData", "Roaming"), "Skill Manager");
   }
-  return path10.join(env.XDG_CONFIG_HOME ?? path10.join(homeDir, ".config"), "Skill Manager");
+  return path10.posix.join(env.XDG_CONFIG_HOME ?? path10.posix.join(homeDir, ".config"), "Skill Manager");
 }
 function parseArguments(argv) {
   const positionals = [];
