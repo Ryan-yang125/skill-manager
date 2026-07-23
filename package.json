@@ -53,6 +53,6 @@
   "packageManager": "pnpm@11.7.0",
   "devDependencies": {
     "@playwright/test": "^1.61.1",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   }
 }
