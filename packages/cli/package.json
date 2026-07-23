@@ -39,7 +39,7 @@
     "start": "pnpm build && node dist/skill-manager.mjs",
     "build": "pnpm --filter @skill-manager/core build && node scripts/build.mjs",
     "test": "vitest run",
-    "lint": "tsc -p tsconfig.json --noEmit",
+    "lint": "pnpm --filter @skill-manager/core build && tsc -p tsconfig.json --noEmit",
     "bundle": "pnpm build && node scripts/build.mjs ../../bin/skill-manager.mjs",
     "pack:release": "pnpm build && node scripts/pack-release.mjs"
   },
