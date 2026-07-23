@@ -4,6 +4,7 @@ build/
 !apps/desktop/build/**
 dist/
 dist-electron/
+cli-dist/
 release-dist/
 node_modules/
 packages/*/dist/

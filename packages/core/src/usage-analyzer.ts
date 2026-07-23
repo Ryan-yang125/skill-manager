@@ -1,14 +1,37 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { isSearchableLog, pathExists, stableId } from "./path-utils.js";
-import type { SkillAgent, SkillRecord, UsageEvidence, UsageEvidenceKind, UsageHit, UsageSessionRootAudit } from "./types.js";
+import { isSearchableLog, isoFromDate, pathExists, stableId } from "./path-utils.js";
+import type { SkillAgent, SkillRecord, UsageEvidence, UsageEvidenceAudit, UsageEvidenceKind, UsageHit, UsageSessionRootAudit } from "./types.js";
 
 interface UsageSearchText {
   text: string;
   kind: UsageEvidenceKind;
   agent: SkillAgent;
   detail: string;
+}
+
+interface ShallowLogScan {
+  paths: string[];
+  oversizedCount: number;
+}
+
+interface SessionRootScan extends ShallowLogScan {
+  path: string;
+  agent: SkillAgent;
+  exists: boolean;
+  timeWindowDays: number | null;
+}
+
+interface SessionLogSnapshot {
+  logs: string[];
+  roots: SessionRootScan[];
+}
+
+interface SkillUsageTerms {
+  skillId: string;
+  skillName: string;
+  pathTerms: string[];
 }
 
 export interface UsageAnalyzerOptions {
@@ -18,9 +41,14 @@ export interface UsageAnalyzerOptions {
 }
 
 export class UsageAnalyzer {
+  static readonly codexActiveWindowDays = 120;
+
   readonly homeDir: string;
   readonly maxLogBytes: number;
   readonly maxLogFiles: number;
+  private ambiguousMatchesExcluded = 0;
+  private timestampFallbackCount = 0;
+  private readonly analysisWarningsBySkill = new Map<string, string[]>();
 
   constructor(options: UsageAnalyzerOptions) {
     this.homeDir = options.homeDir;
@@ -29,6 +57,9 @@ export class UsageAnalyzer {
   }
 
   async analyzeSkillUsage(skills: SkillRecord[]): Promise<Map<string, UsageHit>> {
+    this.ambiguousMatchesExcluded = 0;
+    this.timestampFallbackCount = 0;
+    this.analysisWarningsBySkill.clear();
     const terms = normalizedPathTerms(skills);
     if (terms.size === 0) return new Map();
 
@@ -37,61 +68,62 @@ export class UsageAnalyzer {
       const stat = await fs.promises.stat(logPath).catch(() => null);
       const modifiedAt = stat?.mtime.toISOString() ?? new Date(0).toISOString();
       const matches = await this.matchedSkillEvidence(logPath, terms, modifiedAt);
-      for (const [original, evidence] of matches) {
-        const hit = hits.get(original) ?? { count: 0, lastUsedAt: null, evidence: [] };
+      for (const [skillId, evidence] of matches) {
+        const hit = hits.get(skillId) ?? { count: 0, lastUsedAt: null, evidence: [] };
         hit.count += evidence.length;
-        if (!hit.lastUsedAt || modifiedAt > hit.lastUsedAt) hit.lastUsedAt = modifiedAt;
+        const latestEvidenceAt = evidence
+          .map((item) => item.occurredAt)
+          .filter((value): value is string => value !== null)
+          .sort((a, b) => b.localeCompare(a))[0] ?? null;
+        if (latestEvidenceAt && (!hit.lastUsedAt || latestEvidenceAt > hit.lastUsedAt)) hit.lastUsedAt = latestEvidenceAt;
         hit.evidence.push(...evidence);
         hit.evidence.sort((a, b) => (b.occurredAt ?? "").localeCompare(a.occurredAt ?? ""));
         if (hit.evidence.length > 20) hit.evidence = hit.evidence.slice(0, 20);
-        hits.set(original, hit);
+        hits.set(skillId, hit);
       }
     }
     return hits;
   }
 
-  async sessionLogPaths(): Promise<string[]> {
-    const logs = [
-      ...(await this.codexRecentSessionLogs(120)),
-      ...(await shallowLogs(path.join(this.homeDir, ".codex", "archived_sessions"), this.maxLogBytes)),
-      ...(await this.claudeProjectLogs())
-    ];
+  analysisAudit(): UsageEvidenceAudit {
+    const warnings = [...new Set([...this.analysisWarningsBySkill.values()].flat())];
+    return {
+      ambiguousMatchesExcluded: this.ambiguousMatchesExcluded,
+      timestampFallbackCount: this.timestampFallbackCount,
+      warnings
+    };
+  }
 
-    const unique = [...new Set(logs)];
-    const dated = await Promise.all(
-      unique.map(async (logPath) => ({
-        logPath,
-        mtime: (await fs.promises.stat(logPath).catch(() => null))?.mtimeMs ?? 0
-      }))
+  warningsBySkillId(): Map<string, string[]> {
+    return new Map(
+      [...this.analysisWarningsBySkill].map(([skillId, warnings]) => [skillId, [...warnings]])
     );
+  }
 
-    return dated
-      .sort((a, b) => b.mtime - a.mtime)
-      .slice(0, this.maxLogFiles)
-      .map((item) => item.logPath);
+  async sessionLogPaths(): Promise<string[]> {
+    return (await this.sessionLogSnapshot()).logs;
   }
 
   async sessionRootAudits(): Promise<UsageSessionRootAudit[]> {
-    const logs = await this.sessionLogPaths();
-    const roots: Array<[string, SkillAgent]> = [
-      [path.join(this.homeDir, ".codex", "sessions"), "codex"],
-      [path.join(this.homeDir, ".codex", "archived_sessions"), "codex"],
-      [path.join(this.homeDir, ".claude", "projects"), "claude"]
-    ];
-
-    return Promise.all(
-      roots.map(async ([root, agent]) => ({
-        path: root,
-        agent,
-        exists: await pathExists(root),
-        logCount: logs.filter((logPath) => logPath.startsWith(root)).length
-      }))
-    );
+    const snapshot = await this.sessionLogSnapshot();
+    return snapshot.roots.map((root) => {
+      const logCount = snapshot.logs.filter((logPath) => isPathInside(logPath, root.path)).length;
+      return {
+        path: root.path,
+        agent: root.agent,
+        exists: root.exists,
+        logCount,
+        eligibleLogCount: root.paths.length,
+        oversizedLogCount: root.oversizedCount,
+        excludedByFileLimitCount: Math.max(0, root.paths.length - logCount),
+        timeWindowDays: root.timeWindowDays
+      };
+    });
   }
 
   private async matchedSkillEvidence(
     logPath: string,
-    terms: Map<string, string[]>,
+    terms: Map<string, SkillUsageTerms>,
     modifiedAt: string
   ): Promise<Map<string, UsageEvidence[]>> {
     let raw: string;
@@ -114,47 +146,123 @@ export class UsageAnalyzer {
       }
 
       const lineMatches = new Map<string, UsageEvidence>();
+      const eventOccurredAt = timestampFromEvent(object);
+      const occurredAt = eventOccurredAt ?? modifiedAt;
+      const timestampSource: UsageEvidence["timestampSource"] = eventOccurredAt ? "event" : "file_mtime";
       const skillToolUse = findSkillToolUse(object);
       if (skillToolUse) {
-        const original = originalName(skillToolUse, terms);
-        if (original) {
+        const candidates = matchingTermsByName(skillToolUse, terms);
+        if (candidates.length === 1) {
+          const candidate = candidates[0]!;
           const isClaude = logPath.includes(`${path.sep}.claude${path.sep}projects${path.sep}`);
           const kind: UsageEvidenceKind = isClaude ? "claudeSkillTool" : "codexDirectLoad";
-          lineMatches.set(original, usageEvidence(original, logPath, lineIndex, kind, isClaude ? "claude" : "codex", modifiedAt, labelForKind(kind), skillToolUse));
+          lineMatches.set(
+            candidate.skillId,
+            usageEvidence(candidate.skillName, logPath, lineIndex, kind, isClaude ? "claude" : "codex", occurredAt, timestampSource, labelForKind(kind), skillToolUse)
+          );
+        } else if (candidates.length > 1) {
+          this.recordAmbiguousMatch(skillToolUse, candidates);
         }
       }
 
       for (const event of codexToolSearchTexts(object)) {
         if (!event.text.includes("/") && !event.text.includes("SKILL.md")) {
-          const original = originalName(event.text, terms);
-          if (original) {
-            lineMatches.set(original, usageEvidence(original, logPath, lineIndex, event.kind, event.agent, modifiedAt, event.detail, event.text));
+          const candidates = matchingTermsByName(event.text, terms);
+          if (candidates.length === 1) {
+            const candidate = candidates[0]!;
+            lineMatches.set(
+              candidate.skillId,
+              usageEvidence(candidate.skillName, logPath, lineIndex, event.kind, event.agent, occurredAt, timestampSource, event.detail, event.text)
+            );
+          } else if (candidates.length > 1) {
+            this.recordAmbiguousMatch(event.text, candidates);
           }
           continue;
         }
 
         if (!event.text.includes("SKILL.md") && !event.text.includes("/skills/")) continue;
-        for (const [original, variants] of terms) {
-          if (variants.some((variant) => event.text.includes(variant))) {
-            lineMatches.set(original, usageEvidence(original, logPath, lineIndex, event.kind, event.agent, modifiedAt, event.detail, event.text.slice(0, 220)));
-          }
+        const candidates = matchingTermsByPath(event.text, terms);
+        for (const candidate of candidates) {
+          lineMatches.set(
+            candidate.skillId,
+            usageEvidence(candidate.skillName, logPath, lineIndex, event.kind, event.agent, occurredAt, timestampSource, event.detail, event.text.slice(0, 220))
+          );
         }
       }
 
-      for (const [original, evidence] of lineMatches) {
-        const current = result.get(original) ?? [];
+      if (!eventOccurredAt) this.timestampFallbackCount += lineMatches.size;
+
+      for (const [skillId, evidence] of lineMatches) {
+        const current = result.get(skillId) ?? [];
         current.push(evidence);
-        result.set(original, current);
+        result.set(skillId, current);
       }
     });
 
     return result;
   }
 
-  private async codexRecentSessionLogs(days: number): Promise<string[]> {
-    const root = path.join(this.homeDir, ".codex", "sessions");
+  private recordAmbiguousMatch(observed: string, candidates: SkillUsageTerms[]): void {
+    this.ambiguousMatchesExcluded += 1;
+    const names = [...new Set(candidates.map((candidate) => candidate.skillName))].join(", ");
+    const warning = `Excluded ambiguous usage evidence for "${observed}"; matching installed skills: ${names}. Use path-based evidence to identify a specific copy.`;
+    for (const candidate of candidates) {
+      const warnings = this.analysisWarningsBySkill.get(candidate.skillId) ?? [];
+      if (!warnings.includes(warning)) warnings.push(warning);
+      this.analysisWarningsBySkill.set(candidate.skillId, warnings);
+    }
+  }
+
+  private async sessionLogSnapshot(): Promise<SessionLogSnapshot> {
+    const codexActiveRoot = path.join(this.homeDir, ".codex", "sessions");
+    const codexArchiveRoot = path.join(this.homeDir, ".codex", "archived_sessions");
+    const claudeRoot = path.join(this.homeDir, ".claude", "projects");
+    const [codexActive, codexArchive, claude] = await Promise.all([
+      this.codexRecentSessionLogs(codexActiveRoot, UsageAnalyzer.codexActiveWindowDays),
+      scanShallowLogs(codexArchiveRoot, this.maxLogBytes),
+      this.claudeProjectLogs(claudeRoot)
+    ]);
+    const roots: SessionRootScan[] = [
+      {
+        ...codexActive,
+        path: codexActiveRoot,
+        agent: "codex",
+        exists: await pathExists(codexActiveRoot),
+        timeWindowDays: UsageAnalyzer.codexActiveWindowDays
+      },
+      {
+        ...codexArchive,
+        path: codexArchiveRoot,
+        agent: "codex",
+        exists: await pathExists(codexArchiveRoot),
+        timeWindowDays: null
+      },
+      {
+        ...claude,
+        path: claudeRoot,
+        agent: "claude",
+        exists: await pathExists(claudeRoot),
+        timeWindowDays: null
+      }
+    ];
+
+    const unique = [...new Set(roots.flatMap((root) => root.paths))];
+    const dated = await Promise.all(
+      unique.map(async (logPath) => ({
+        logPath,
+        mtime: (await fs.promises.stat(logPath).catch(() => null))?.mtimeMs ?? 0
+      }))
+    );
+    const logs = dated
+      .sort((a, b) => b.mtime - a.mtime)
+      .slice(0, this.maxLogFiles)
+      .map((item) => item.logPath);
+    return { logs, roots };
+  }
+
+  private async codexRecentSessionLogs(root: string, days: number): Promise<ShallowLogScan> {
     const today = new Date();
-    const logs: string[] = [];
+    const scans: ShallowLogScan[] = [];
     for (let offset = 0; offset < days; offset += 1) {
       const date = new Date(today);
       date.setDate(today.getDate() - offset);
@@ -164,56 +272,86 @@ export class UsageAnalyzer {
         String(date.getMonth() + 1).padStart(2, "0"),
         String(date.getDate()).padStart(2, "0")
       );
-      logs.push(...(await shallowLogs(directory, this.maxLogBytes)));
+      scans.push(await scanShallowLogs(directory, this.maxLogBytes));
     }
-    return logs;
+    return combineScans(scans);
   }
 
-  private async claudeProjectLogs(): Promise<string[]> {
-    const root = path.join(this.homeDir, ".claude", "projects");
+  private async claudeProjectLogs(root: string): Promise<ShallowLogScan> {
     const entries = await fs.promises.readdir(root, { withFileTypes: true }).catch(() => []);
-    const projects = entries.filter((entry) => entry.isDirectory()).slice(0, 120);
-    const logs = await Promise.all(projects.map((project) => shallowLogs(path.join(root, project.name), this.maxLogBytes)));
-    return logs.flatMap((items) => items.slice(0, 20));
+    const projects = entries.filter((entry) => entry.isDirectory());
+    const scans = await Promise.all(projects.map((project) => scanShallowLogs(path.join(root, project.name), this.maxLogBytes)));
+    return combineScans(scans);
   }
 }
 
-async function shallowLogs(directory: string, maxLogBytes: number): Promise<string[]> {
+async function scanShallowLogs(directory: string, maxLogBytes: number): Promise<ShallowLogScan> {
   const entries = await fs.promises.readdir(directory, { withFileTypes: true }).catch(() => []);
-  const logs: string[] = [];
+  const paths: string[] = [];
+  let oversizedCount = 0;
   for (const entry of entries) {
     if (!entry.isFile()) continue;
     const logPath = path.join(directory, entry.name);
     if (!isSearchableLog(logPath)) continue;
     const stat = await fs.promises.stat(logPath).catch(() => null);
-    if (!stat || stat.size > maxLogBytes) continue;
-    logs.push(logPath);
+    if (!stat) continue;
+    if (stat.size > maxLogBytes) {
+      oversizedCount += 1;
+      continue;
+    }
+    paths.push(logPath);
   }
-  return logs;
+  return { paths, oversizedCount };
 }
 
-function normalizedPathTerms(skills: SkillRecord[]): Map<string, string[]> {
-  const result = new Map<string, string[]>();
+function combineScans(scans: ShallowLogScan[]): ShallowLogScan {
+  return {
+    paths: scans.flatMap((scan) => scan.paths),
+    oversizedCount: scans.reduce((sum, scan) => sum + scan.oversizedCount, 0)
+  };
+}
+
+function isPathInside(candidate: string, root: string): boolean {
+  const relative = path.relative(root, candidate);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function normalizedPathTerms(skills: SkillRecord[]): Map<string, SkillUsageTerms> {
+  const result = new Map<string, SkillUsageTerms>();
   for (const skill of skills) {
-    const folder = path.basename(skill.path);
-    const variants = new Set([
-      skill.name,
-      skill.path,
-      skill.skillFilePath,
-      `/.agents/skills/${folder}/`,
-      `/.agents/skills/${folder}/SKILL.md`,
-      `/.codex/skills/${folder}/`,
-      `/.codex/skills/${folder}/SKILL.md`,
-      `/.claude/skills/${folder}/`,
-      `/.claude/skills/${folder}/SKILL.md`
-    ]);
-    if (skill.relativePath) {
-      variants.add(skill.relativePath);
-      variants.add(`/${skill.relativePath}/SKILL.md`);
+    const skillDirectoryPrefix = `${skill.path}${path.sep}`;
+    const variants = new Set([skillDirectoryPrefix, skill.skillFilePath]);
+    for (const value of [skillDirectoryPrefix, skill.skillFilePath]) {
+      const slashPath = value.replaceAll(path.sep, "/");
+      variants.add(slashPath);
+      for (const marker of ["/.agents/", "/.codex/", "/.claude/"]) {
+        const markerIndex = slashPath.indexOf(marker);
+        if (markerIndex >= 0) variants.add(`~${slashPath.slice(markerIndex)}`);
+      }
     }
-    result.set(skill.name, [...variants]);
+    result.set(skill.id, {
+      skillId: skill.id,
+      skillName: skill.name,
+      pathTerms: [...variants].filter(Boolean).sort((a, b) => b.length - a.length)
+    });
   }
   return result;
+}
+
+function matchingTermsByName(observedSkillName: string, terms: Map<string, SkillUsageTerms>): SkillUsageTerms[] {
+  const normalized = observedSkillName.trim().toLocaleLowerCase();
+  if (!normalized) return [];
+  return [...terms.values()].filter((term) => term.skillName.toLocaleLowerCase() === normalized);
+}
+
+function matchingTermsByPath(observedText: string, terms: Map<string, SkillUsageTerms>): SkillUsageTerms[] {
+  const slashText = observedText.replaceAll("\\", "/");
+  return [...terms.values()].filter((term) =>
+    term.pathTerms.some((candidate) => {
+      const slashCandidate = candidate.replaceAll("\\", "/");
+      return slashCandidate.length > 0 && slashText.includes(slashCandidate);
+    })
+  );
 }
 
 function isPotentialUsageLine(line: string): boolean {
@@ -235,7 +373,8 @@ function usageEvidence(
   lineIndex: number,
   kind: UsageEvidenceKind,
   agent: SkillAgent,
-  modifiedAt: string,
+  occurredAt: string,
+  timestampSource: UsageEvidence["timestampSource"],
   detail: string,
   matchedText: string
 ): UsageEvidence {
@@ -247,7 +386,8 @@ function usageEvidence(
     kind,
     sessionPath: logPath,
     sessionKind: logPath.includes(`${path.sep}.codex${path.sep}archived_sessions`) ? "archived" : "active",
-    occurredAt: modifiedAt,
+    occurredAt,
+    timestampSource,
     detail,
     matchedText,
     confidence: "high"
@@ -337,15 +477,32 @@ function stringValues(record: Record<string, unknown>, keys: string[]): string[]
   });
 }
 
-function originalName(observedSkillName: string, terms: Map<string, string[]>): string | null {
-  const normalized = observedSkillName.trim().toLowerCase();
-  if (!normalized) return null;
-
-  for (const [original, variants] of terms) {
-    if (original.toLowerCase() === normalized) return original;
-    if (variants.some((variant) => variant.toLowerCase() === normalized)) return original;
+function timestampFromEvent(value: unknown): string | null {
+  if (!isRecord(value)) return null;
+  for (const key of ["timestamp", "time", "createdAt", "created_at"]) {
+    const timestamp = normalizedTimestamp(value[key]);
+    if (timestamp) return timestamp;
+  }
+  for (const key of ["payload", "message", "event"]) {
+    if (isRecord(value[key])) {
+      const timestamp = timestampFromEvent(value[key]);
+      if (timestamp) return timestamp;
+    }
   }
   return null;
+}
+
+function normalizedTimestamp(value: unknown): string | null {
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value < 1_000_000_000) return null;
+    return isoFromDate(value < 1_000_000_000_000 ? value * 1000 : value);
+  }
+  if (typeof value !== "string" || !value.trim()) return null;
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && value.trim().match(/^\d+(?:\.\d+)?$/)) {
+    return normalizedTimestamp(numeric);
+  }
+  return isoFromDate(value);
 }
 
 function labelForKind(kind: UsageEvidenceKind): string {

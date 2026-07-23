@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0
+
+- Added a read-first command-line interface for inventory, evidence-backed audits, inspection, dry-run archive planning, archive, and restore.
+- Added stable JSON and Markdown audit reports for agents and automation, including explicit evidence coverage and conservative review states.
+- Added the installable `audit-agent-skills` Agent Skill with confirmation gates around every filesystem change.
+- Added a public documentation site with guides, machine-readable discovery files, and GitHub Pages delivery.
+- Added contribution guidance for host adapters, evidence fixtures, and filesystem safety.
+
 ## 0.5.0
 
 - Migrated the product surface to an Electron, React, TypeScript, Tailwind, and shadcn/Radix desktop app.

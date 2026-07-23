@@ -68,10 +68,10 @@ export class SkillScanner {
 
         const stat = await fs.promises.stat(skillFilePath).catch(() => null);
         const sizeBytes = await directorySize(folderPath);
-        const hit = usage.get(parsed.name) ?? usage.get(child.name) ?? { count: 0, lastUsedAt: null, evidence: [] };
+        const hit = usage.get(stableId(folderPath)) ?? usage.get(parsed.name) ?? usage.get(child.name) ?? { count: 0, lastUsedAt: null, evidence: [] };
         const relativePath = path.relative(root.path, folderPath);
         const packageMetadata = packageMetadataFor(parsed.name, folderPath, packages);
-        const recommendation = recommendationForSkill(hit.count, hit.lastUsedAt, parsed.contextTokens, now);
+        const recommendation = recommendationForSkill(hit, parsed.contextTokens, now);
         const record: SkillRecord = {
           id: stableId(folderPath),
           name: parsed.name,
@@ -111,12 +111,27 @@ export class SkillScanner {
   }
 }
 
-function recommendationForSkill(usageCount: number, lastUsedAt: string | null, tokenEstimate: number, now: Date): SkillRecommendation {
-  if (usageCount === 0 || !lastUsedAt) return "archive";
-  const days = (now.getTime() - new Date(lastUsedAt).getTime()) / 86_400_000;
+function recommendationForSkill(hit: UsageHit, tokenEstimate: number, now: Date): SkillRecommendation {
+  // An empty local evidence set cannot establish that a skill is unused. The
+  // session history may be missing, truncated, stored by another agent, or
+  // outside the analyzer's scan window, so zero evidence always needs review.
+  if (hit.count === 0 || !hit.lastUsedAt) return "review";
+  if (!hasReliableLastUsedEvidence(hit)) return "review";
+  const lastUsedTime = new Date(hit.lastUsedAt).getTime();
+  if (Number.isNaN(lastUsedTime)) return "review";
+  const days = (now.getTime() - lastUsedTime) / 86_400_000;
   if (days >= 90) return "archive";
   if (days >= 30 || tokenEstimate >= 2000) return "review";
   return "keep";
+}
+
+export function hasReliableLastUsedEvidence(hit: Pick<UsageHit, "count" | "lastUsedAt" | "evidence">): boolean {
+  if (hit.count <= 0 || !hit.lastUsedAt) return false;
+  if (hit.evidence.length === 0) return false;
+  if (hit.evidence.some((evidence) => evidence.timestampSource !== "event" || !evidence.occurredAt)) return false;
+  return hit.evidence.some(
+    (evidence) => evidence.timestampSource === "event" && evidence.occurredAt === hit.lastUsedAt
+  );
 }
 
 async function findSkillMarkdown(folderPath: string): Promise<string | null> {

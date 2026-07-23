@@ -5,6 +5,7 @@ const commands = [
   ["pnpm", ["lint"]],
   ["pnpm", ["test"]],
   ["pnpm", ["build"]],
+  ["pnpm", ["site:verify"]],
   ["pnpm", ["smoke"]],
   ["pnpm", ["audit"]]
 ];

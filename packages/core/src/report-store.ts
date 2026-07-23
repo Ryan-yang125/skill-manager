@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 import { evidenceKindLabel, formatBytes, formatTokens, relativeDate } from "./formatting.js";
+import { hasReliableLastUsedEvidence } from "./scanner.js";
 import type { CleanupPlanReport, CleanupReportExport, CleanupSkillSnapshot, SkillDecisionRecord, SkillInventory, SkillRecord } from "./types.js";
 
 export class CleanupReportStore {
@@ -29,18 +30,29 @@ export function cleanupPlanReport(
   decisions: Map<string, SkillDecisionRecord>,
   now = new Date()
 ): CleanupPlanReport {
+  // Cleanup plans only include candidates backed by observed, dated usage.
+  // Missing local evidence remains a review state throughout the export path.
+  const archiveEligibleSkills = skills.filter(
+    (skill) =>
+      skill.recommendation === "archive" &&
+      hasReliableLastUsedEvidence({
+        count: skill.usageCount,
+        lastUsedAt: skill.lastUsedAt,
+        evidence: skill.usageEvidence
+      })
+  );
   const protectedExcludedCount = inventory.active.filter((skill) => skill.recommendation === "archive" && decisions.get(skill.id)?.decision === "protected").length;
   const reviewExcludedCount = inventory.active.filter((skill) => skill.recommendation === "archive" && decisions.get(skill.id)?.decision === "review").length;
   return {
     generatedAt: now.toISOString(),
-    selectedCount: skills.length,
-    selectedContextTokens: skills.reduce((sum, skill) => sum + skill.contextTokens, 0),
-    selectedBytes: skills.reduce((sum, skill) => sum + skill.sizeBytes, 0),
+    selectedCount: archiveEligibleSkills.length,
+    selectedContextTokens: archiveEligibleSkills.reduce((sum, skill) => sum + skill.contextTokens, 0),
+    selectedBytes: archiveEligibleSkills.reduce((sum, skill) => sum + skill.sizeBytes, 0),
     installedCount: inventory.active.length,
     archivedCount: inventory.archived.length,
     protectedExcludedCount,
     reviewExcludedCount,
-    skills: skills.map((skill) => cleanupSnapshot(skill, decisions.get(skill.id), now))
+    skills: archiveEligibleSkills.map((skill) => cleanupSnapshot(skill, decisions.get(skill.id), now))
   };
 }
 

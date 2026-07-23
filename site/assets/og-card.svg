@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Skill Manager Agent Skills audit receipt</title>
+  <desc id="desc">A navy, blue, orange, and white social card showing an audit receipt for shared, Codex, and Claude skill roots.</desc>
+  <rect width="1200" height="630" fill="#101d33"/>
+  <path d="M0 0h14v340H0z" fill="#3158e6"/><path d="M0 340h14v170H0z" fill="#e85d36"/><path d="M0 510h14v120H0z" fill="#54d4bb"/>
+  <g opacity=".12" stroke="#b9c9e8"><path d="M0 70h1200M0 140h1200M0 210h1200M0 280h1200M0 350h1200M0 420h1200M0 490h1200M0 560h1200"/><path d="M70 0v630M140 0v630M210 0v630M280 0v630M350 0v630M420 0v630M490 0v630M560 0v630M630 0v630M700 0v630M770 0v630M840 0v630M910 0v630M980 0v630M1050 0v630M1120 0v630"/></g>
+  <g transform="translate(72 78)">
+    <rect x="8" y="8" width="52" height="52" fill="#3158e6"/><rect width="52" height="52" fill="#fff" stroke="#101d33" stroke-width="4"/>
+    <path d="M12 14h28M12 26h18M12 38h28" stroke="#101d33" stroke-width="5"/><path d="M37 20v13" stroke="#e85d36" stroke-width="5"/>
+    <text x="76" y="38" fill="#fff" font-family="Arial Narrow, Arial, sans-serif" font-size="28" font-weight="800" letter-spacing="2">SKILL MANAGER</text>
+  </g>
+  <text x="72" y="244" fill="#fff" font-family="Arial Narrow, Arial, sans-serif" font-size="82" font-weight="900" letter-spacing="-4">YOUR AGENT SKILLS</text>
+  <text x="72" y="326" fill="#6f91ff" font-family="Arial Narrow, Arial, sans-serif" font-size="82" font-weight="900" letter-spacing="-4">KEEP RECEIPTS.</text>
+  <text x="76" y="386" fill="#c6d2e8" font-family="Arial, sans-serif" font-size="24">Local inventory · usage evidence · catalog context · reversible archive</text>
+  <g transform="translate(744 68) rotate(2 190 240)">
+    <rect x="14" y="14" width="372" height="490" fill="#dfe6ff"/>
+    <rect width="372" height="490" fill="#fff" stroke="#101d33" stroke-width="4"/>
+    <rect width="372" height="62" fill="#3158e6"/>
+    <text x="22" y="38" fill="#fff" font-family="Courier New, monospace" font-size="15" font-weight="700">LOCAL AUDIT / VERIFIED</text>
+    <text x="24" y="108" fill="#52617a" font-family="Courier New, monospace" font-size="14">SUPPORTED ROOTS</text>
+    <text x="24" y="176" fill="#101d33" font-family="Arial Narrow, Arial, sans-serif" font-size="74" font-weight="900">3</text>
+    <g font-family="Courier New, monospace" font-size="15" fill="#101d33">
+      <rect x="24" y="211" width="10" height="10" fill="#3158e6"/><text x="50" y="221">~/.agents/skills</text><text x="292" y="221" fill="#14786d">READY</text>
+      <path d="M24 242h324" stroke="#c9d4e7"/>
+      <rect x="24" y="263" width="10" height="10" fill="#e85d36"/><text x="50" y="273">~/.codex/skills</text><text x="292" y="273" fill="#14786d">READY</text>
+      <path d="M24 294h324" stroke="#c9d4e7"/>
+      <rect x="24" y="315" width="10" height="10" fill="#54d4bb"/><text x="50" y="325">~/.claude/skills</text><text x="292" y="325" fill="#14786d">READY</text>
+    </g>
+    <path d="M24 370h324" stroke="#94a6c5" stroke-width="2" stroke-dasharray="8 8"/>
+    <text x="24" y="410" fill="#52617a" font-family="Courier New, monospace" font-size="14">FREE FOREVER · MIT · LOCAL-FIRST</text>
+    <rect x="24" y="440" width="324" height="28" fill="#101d33"/>
+    <text x="39" y="459" fill="#fff" font-family="Courier New, monospace" font-size="12">ryan-yang125/skill-manager</text>
+  </g>
+  <rect x="74" y="486" width="555" height="72" fill="#0b1426" stroke="#52617a" stroke-width="2"/>
+  <text x="96" y="530" fill="#54d4bb" font-family="Courier New, monospace" font-size="20">$</text><text x="122" y="530" fill="#edf2ff" font-family="Courier New, monospace" font-size="20">npx github:Ryan-yang125/skill-manager audit</text>
+</svg>

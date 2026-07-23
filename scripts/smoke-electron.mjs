@@ -5,14 +5,12 @@ import path from "node:path";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const mainPath = path.join(repoRoot, "apps", "desktop", "dist-electron", "main.js");
-const screenshotPath = path.join(repoRoot, "docs", "screenshots", "electron-main.png");
 const fixtureHome = await fs.promises.mkdtemp(path.join(os.tmpdir(), "skill-manager-smoke-home-"));
+const screenshotPath = path.join(fixtureHome, "electron-main.png");
 
 if (!fs.existsSync(mainPath)) {
   throw new Error(`Build output not found: ${mainPath}`);
 }
-
-await fs.promises.mkdir(path.dirname(screenshotPath), { recursive: true });
 
 const app = await electron.launch({
   args: [mainPath],

@@ -29,6 +29,8 @@ if (artifactOnly) {
 
 const fixtureHome = await fs.promises.mkdtemp(path.join(os.tmpdir(), "skill-manager-packaged-home-"));
 const fixtureData = await fs.promises.mkdtemp(path.join(os.tmpdir(), "skill-manager-packaged-data-"));
+const smokeReportPath = path.join(fixtureData, "smoke-report.json");
+const expectedUserData = expectedUserDataPath(fixtureHome, fixtureData);
 const output = createOutputBuffer();
 let exited = false;
 let exitCode = null;
@@ -45,7 +47,9 @@ const child = spawn(executablePath, ["--no-sandbox", "--disable-gpu"], {
     XDG_CACHE_HOME: path.join(fixtureData, "xdg-cache"),
     APPDATA: path.join(fixtureData, "AppData", "Roaming"),
     LOCALAPPDATA: path.join(fixtureData, "AppData", "Local"),
-    SKILL_MANAGER_SMOKE: "1"
+    SKILL_MANAGER_SMOKE: "1",
+    SKILL_MANAGER_SMOKE_REPORT: smokeReportPath,
+    SKILL_MANAGER_SMOKE_USER_DATA: expectedUserData
   },
   stdio: ["ignore", "pipe", "pipe"]
 });
@@ -66,6 +70,10 @@ try {
     throw new Error(
       `Packaged app exited during launch probe with code ${exitCode ?? "null"} and signal ${exitSignal ?? "null"}.\n${output.text()}`
     );
+  }
+  const observedUserData = await readSmokeUserData(smokeReportPath);
+  if (!observedUserData || comparablePath(observedUserData) !== comparablePath(expectedUserData)) {
+    throw new Error(`Packaged app userData mismatch; expected ${expectedUserData}, got ${observedUserData ?? "no marker"}.\n${output.text()}`);
   }
   console.log(`Packaged app launch probe passed: ${executablePath}`);
 } finally {
@@ -161,6 +169,28 @@ function delay(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
+}
+
+function expectedUserDataPath(homeDir, dataDir) {
+  if (process.platform === "darwin") return path.join(homeDir, "Library", "Application Support", productName);
+  if (process.platform === "win32") return path.join(dataDir, "AppData", "Roaming", productName);
+  return path.join(dataDir, "xdg-config", productName);
+}
+
+function comparablePath(value) {
+  let normalized = path.resolve(value);
+  if (process.platform === "darwin") normalized = normalized.replace(/^\/private(?=\/var\/)/, "");
+  if (process.platform === "win32") normalized = normalized.toLowerCase();
+  return normalized;
+}
+
+async function readSmokeUserData(reportPath) {
+  try {
+    const report = JSON.parse(await fs.promises.readFile(reportPath, "utf8"));
+    return typeof report.userData === "string" ? report.userData : null;
+  } catch {
+    return null;
+  }
 }
 
 async function terminateProcessTree(childProcess) {

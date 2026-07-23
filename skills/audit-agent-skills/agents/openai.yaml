@@ -1,0 +1,4 @@
+interface:
+  display_name: "Audit Agent Skills"
+  short_description: "Audit local Agent Skills safely"
+  default_prompt: "Use $audit-agent-skills to audit my local Agent Skills and explain the evidence before suggesting any cleanup."

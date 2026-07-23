@@ -9,6 +9,7 @@ const version = packageJson.version;
 const args = process.argv.slice(2);
 const modeArg = args.find((arg) => arg.startsWith("--platform="));
 const mode = modeArg?.slice("--platform=".length) ?? "all";
+const verifyPublishedBundle = args.includes("--published");
 const dirArg = args.find((arg) => !arg.startsWith("--"));
 const distDir = path.resolve(dirArg ?? path.join(repoRoot, "dist-electron"));
 
@@ -33,6 +34,9 @@ if (requiredPlatforms.has("win")) {
   requireFile("latest.yml");
 }
 requireFile("SHA256SUMS.txt");
+if (verifyPublishedBundle) {
+  await verifyPublishedAssets();
+}
 
 for (const file of releaseAssets.files) {
   const stat = await fs.promises.stat(path.join(distDir, file));
@@ -143,7 +147,13 @@ function verifyDebPackages({ debs }) {
 }
 
 async function verifyUpdateMetadata() {
-  const metadataFiles = entries.filter((entry) => /^latest.*\.ya?ml$/.test(entry));
+  const metadataFiles = entries.filter((entry) => {
+    if (!/^latest.*\.ya?ml$/.test(entry)) return false;
+    if (entry === "latest-mac.yml") return requiredPlatforms.has("mac");
+    if (entry === "latest.yml") return requiredPlatforms.has("win");
+    if (/^latest-linux.*\.ya?ml$/.test(entry)) return requiredPlatforms.has("linux");
+    return false;
+  });
   for (const metadataFile of metadataFiles) {
     const parsed = parseLatestYml(await fs.promises.readFile(path.join(distDir, metadataFile), "utf8"));
     if (parsed.version !== version) throw new Error(`${metadataFile} version ${parsed.version} does not match ${version}`);
@@ -156,6 +166,35 @@ async function verifyUpdateMetadata() {
       const stat = await fs.promises.stat(path.join(distDir, file.url));
       if (stat.size !== file.size) throw new Error(`${metadataFile} size mismatch for ${file.url}: expected ${file.size}, got ${stat.size}`);
     }
+  }
+}
+
+async function verifyPublishedAssets() {
+  const required = [
+    `agent-skills-audit-${version}.tgz`,
+    "skill-manager.mjs",
+    "screenshot-main.png",
+    "screenshot-dark.png",
+    "screenshot-compact.png",
+    `release-notes-v${version}.md`
+  ];
+  for (const file of required) requireFile(file);
+
+  const checksums = new Map();
+  const raw = await fs.promises.readFile(path.join(distDir, "SHA256SUMS.txt"), "utf8");
+  for (const line of raw.split(/\r?\n/)) {
+    const match = /^([a-f0-9]{64})\s{2}(.+)$/.exec(line.trim());
+    if (match) checksums.set(match[2], match[1]);
+  }
+
+  for (const file of required) {
+    const filePath = path.join(distDir, file);
+    const stat = await fs.promises.stat(filePath);
+    if (stat.size <= 128) throw new Error(`Published release asset is unexpectedly small: ${file}`);
+    const expected = checksums.get(file);
+    if (!expected) throw new Error(`Published release asset is missing from SHA256SUMS.txt: ${file}`);
+    const actual = await digest(filePath, "sha256", "hex");
+    if (actual !== expected) throw new Error(`Published release asset checksum mismatch: ${file}`);
   }
 }
 

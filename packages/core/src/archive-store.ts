@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -9,7 +10,7 @@ interface ArchiveFile {
 }
 
 export class ArchiveError extends Error {
-  readonly code: "originalMissing" | "archiveMissing" | "archiveDestinationExists" | "restoreDestinationExists";
+  readonly code: "originalMissing" | "archiveMissing" | "archiveDestinationExists" | "restoreDestinationExists" | "contentHashMismatch";
   readonly pathValue: string;
 
   constructor(code: ArchiveError["code"], pathValue: string) {
@@ -17,7 +18,8 @@ export class ArchiveError extends Error {
       originalMissing: `Skill folder is missing: ${pathValue}`,
       archiveMissing: `Archive folder is missing: ${pathValue}`,
       archiveDestinationExists: `Archive destination already exists: ${pathValue}`,
-      restoreDestinationExists: `Restore destination already exists: ${pathValue}`
+      restoreDestinationExists: `Restore destination already exists: ${pathValue}`,
+      contentHashMismatch: `Archived Skill content hash does not match the ledger: ${pathValue}`
     };
     super(messages[code]);
     this.name = "ArchiveError";
@@ -37,8 +39,12 @@ export class ArchiveStore {
 
   async archivedSkills(): Promise<ArchivedSkill[]> {
     const file = await readJson<ArchiveFile>(this.ledgerPath, { entries: [] });
-    return file.entries
-      .filter((entry) => entry.operationStatus === "archived")
+    const visible = await Promise.all(
+      file.entries.map(async (entry) => ({ entry, visible: await isVisibleArchivedEntry(entry) }))
+    );
+    return visible
+      .filter((item) => item.visible)
+      .map((item) => item.entry)
       .sort((a, b) => b.archivedAt.localeCompare(a.archivedAt));
   }
 
@@ -53,13 +59,10 @@ export class ArchiveStore {
     }
 
     await fs.promises.mkdir(this.archiveRoot, { recursive: true });
-    const archiveId = `${fileDateString(now)}-${safePathComponent(skill.name)}`;
     const agentFolder = path.join(this.archiveRoot, safePathComponent(skill.agent));
     await fs.promises.mkdir(agentFolder, { recursive: true });
-    const destination = path.join(agentFolder, archiveId);
-    if (await pathExists(destination)) {
-      throw new ArchiveError("archiveDestinationExists", destination);
-    }
+    const entries = await this.allLedgerEntries();
+    const { archiveId, destination } = await availableArchiveDestination(skill, now, agentFolder, entries);
 
     const contentHashBefore = await hashPath(skill.path);
     const entry: ArchivedSkill = {
@@ -73,22 +76,24 @@ export class ArchiveStore {
       restoredAt: null,
       agent: skill.agent,
       sizeBytes: skill.sizeBytes,
-      operationStatus: "archived",
+      operationStatus: "archiving",
       failureReason: null,
       contentHashBefore,
       contentHashAfter: null
     };
 
-    const entries = await this.allLedgerEntries();
     entries.push(entry);
     await saveLedger(this.ledgerPath, entries);
     try {
       await fs.promises.rename(skill.path, destination);
       entry.contentHashAfter = await hashPath(destination);
+      entry.operationStatus = "archived";
       await saveLedger(this.ledgerPath, replaceEntry(entries, entry));
       return entry;
     } catch (error) {
-      entry.operationStatus = "failed";
+      const archiveExists = await pathExists(destination);
+      const originalExists = await pathExists(skill.path);
+      entry.operationStatus = archiveExists && !originalExists ? "archiving" : "failed";
       entry.failureReason = error instanceof Error ? error.message : String(error);
       await saveLedger(this.ledgerPath, replaceEntry(entries, entry));
       throw error;
@@ -102,20 +107,56 @@ export class ArchiveStore {
     if (await pathExists(archived.originalPath)) {
       throw new ArchiveError("restoreDestinationExists", archived.originalPath);
     }
+    const archivedContentHash = await hashPath(archived.archivePath);
+    const expectedContentHash = archived.contentHashAfter ?? archived.contentHashBefore;
+    if (expectedContentHash && archivedContentHash !== expectedContentHash) {
+      throw new ArchiveError("contentHashMismatch", archived.archivePath);
+    }
 
     await fs.promises.mkdir(path.dirname(archived.originalPath), { recursive: true });
-    await fs.promises.rename(archived.archivePath, archived.originalPath);
-    const restored: ArchivedSkill = {
-      ...archived,
-      restoredAt: now.toISOString(),
-      operationStatus: "restored",
-      failureReason: null,
-      contentHashAfter: await hashPath(archived.originalPath)
-    };
     const entries = await this.allLedgerEntries();
-    await saveLedger(this.ledgerPath, replaceEntry(entries, restored));
-    return restored;
+    const restoring: ArchivedSkill = {
+      ...archived,
+      operationStatus: "restoring",
+      failureReason: null
+    };
+    await saveLedger(this.ledgerPath, replaceEntry(entries, restoring));
+    try {
+      await fs.promises.rename(archived.archivePath, archived.originalPath);
+      const restored: ArchivedSkill = {
+        ...restoring,
+        restoredAt: now.toISOString(),
+        operationStatus: "restored",
+        failureReason: null,
+        contentHashAfter: await hashPath(archived.originalPath)
+      };
+      await saveLedger(this.ledgerPath, replaceEntry(entries, restored));
+      return restored;
+    } catch (error) {
+      const archiveExists = await pathExists(archived.archivePath);
+      const originalExists = await pathExists(archived.originalPath);
+      const recoverable: ArchivedSkill = {
+        ...restoring,
+        operationStatus: archiveExists && !originalExists ? "archived" : "restoring",
+        failureReason: error instanceof Error ? error.message : String(error)
+      };
+      await saveLedger(this.ledgerPath, replaceEntry(entries, recoverable));
+      throw error;
+    }
   }
+}
+
+async function isVisibleArchivedEntry(entry: ArchivedSkill): Promise<boolean> {
+  if (entry.operationStatus === "archived") return true;
+  if (entry.operationStatus !== "archiving" && entry.operationStatus !== "restoring") return false;
+  const [originalExists, archiveExists] = await Promise.all([
+    pathExists(entry.originalPath),
+    pathExists(entry.archivePath)
+  ]);
+  // Reading the ledger never repairs it. Filesystem state only decides whether
+  // an interrupted operation remains visible and recoverable as an archive.
+  if (archiveExists) return true;
+  return !originalExists;
 }
 
 async function saveLedger(filePath: string, entries: ArchivedSkill[]): Promise<void> {
@@ -130,5 +171,33 @@ function replaceEntry(entries: ArchivedSkill[], entry: ArchivedSkill): ArchivedS
 
 function fileDateString(date: Date): string {
   const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+  const milliseconds = String(date.getMilliseconds()).padStart(3, "0");
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}-${milliseconds}`;
+}
+
+function archiveIdBase(skill: SkillRecord, now: Date): string {
+  const agent = safePathComponent(skill.agent);
+  const name = safePathComponent(skill.name).slice(0, 80);
+  const pathHash = createHash("sha256").update(skill.path).digest("hex").slice(0, 10);
+  return `${fileDateString(now)}-${agent}-${name}-${pathHash}`;
+}
+
+async function availableArchiveDestination(
+  skill: SkillRecord,
+  now: Date,
+  agentFolder: string,
+  entries: ArchivedSkill[]
+): Promise<{ archiveId: string; destination: string }> {
+  const base = archiveIdBase(skill, now);
+  for (let sequence = 1; sequence <= entries.length + 2; sequence += 1) {
+    const archiveId = sequence === 1 ? base : `${base}-${sequence}`;
+    const destination = path.join(agentFolder, archiveId);
+    const ledgerCollision = entries.some((entry) => entry.id === archiveId);
+    const destinationExists = await pathExists(destination);
+    if (destinationExists && !ledgerCollision) {
+      throw new ArchiveError("archiveDestinationExists", destination);
+    }
+    if (!ledgerCollision && !destinationExists) return { archiveId, destination };
+  }
+  throw new ArchiveError("archiveDestinationExists", path.join(agentFolder, base));
 }

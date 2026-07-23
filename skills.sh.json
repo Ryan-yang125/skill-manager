@@ -1,0 +1,13 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "Agent Skills Operations",
+      "description": "Audit local Agent Skills, explain evidence coverage, and keep cleanup actions reversible.",
+      "skills": [
+        "audit-agent-skills"
+      ]
+    }
+  ]
+}

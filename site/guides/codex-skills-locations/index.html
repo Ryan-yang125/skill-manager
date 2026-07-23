@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Codex Skills Locations: Find Every Local Skill — Skill Manager</title>
+    <meta name="description" content="Find Codex skills in ~/.codex/skills and shared skills in ~/.agents/skills. Learn how scope, symlinks, packages, and duplicate paths affect an audit.">
+    <link rel="canonical" href="https://ryan-yang125.github.io/skill-manager/guides/codex-skills-locations/">
+    <link rel="icon" href="/skill-manager/assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/skill-manager/assets/styles.css">
+    <meta name="theme-color" content="#101d33">
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="Skill Manager">
+    <meta property="og:title" content="Codex Skills Locations Explained">
+    <meta property="og:description" content="Map Codex and shared skill folders, package sources, and duplicate locations on your machine.">
+    <meta property="og:url" content="https://ryan-yang125.github.io/skill-manager/guides/codex-skills-locations/">
+    <meta property="og:image" content="https://ryan-yang125.github.io/skill-manager/assets/og-card.png">
+    <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          { "@type": "Article", "headline": "Codex Skills Locations: Find Every Local Skill", "url": "https://ryan-yang125.github.io/skill-manager/guides/codex-skills-locations/", "datePublished": "2026-07-23", "dateModified": "2026-07-23", "author": { "@type": "Organization", "name": "Skill Manager", "url": "https://github.com/Ryan-yang125/skill-manager" }, "description": "A practical map of the Codex and shared skill roots audited by Skill Manager." },
+          { "@type": "FAQPage", "mainEntity": [
+            { "@type": "Question", "name": "Where does Skill Manager look for Codex skills?", "acceptedAnswer": { "@type": "Answer", "text": "The current release scans ~/.codex/skills for Codex-specific global skills and ~/.agents/skills for shared global skills." } },
+            { "@type": "Question", "name": "Does Skill Manager scan project-level skills?", "acceptedAnswer": { "@type": "Answer", "text": "The current release focuses on global user roots. Project-level skill folders sit outside its current scan scope." } },
+            { "@type": "Question", "name": "Why can the same skill appear more than once?", "acceptedAnswer": { "@type": "Answer", "text": "A package can install copies into multiple agent roots, or a shared skill can coexist with an agent-specific copy. Compare the exact paths, source metadata, and content before choosing a canonical copy." } }
+          ] },
+          { "@type": "BreadcrumbList", "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Skill Manager", "item": "https://ryan-yang125.github.io/skill-manager/" },
+            { "@type": "ListItem", "position": 2, "name": "Guides", "item": "https://ryan-yang125.github.io/skill-manager/guides/" },
+            { "@type": "ListItem", "position": 3, "name": "Codex Skills Locations", "item": "https://ryan-yang125.github.io/skill-manager/guides/codex-skills-locations/" }
+          ] }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header"><div class="site-header__inner shell"><a class="brand" href="/skill-manager/" aria-label="Skill Manager home"><span class="brand__mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16M4 12h11M4 19h16" stroke="currentColor" stroke-width="2.5"/><path d="M18 9v6" stroke="#e85d36" stroke-width="2.5"/></svg></span>Skill Manager</a><nav class="site-nav" aria-label="Primary navigation"><a href="/skill-manager/#workflow">How it works</a><a href="/skill-manager/guides/" aria-current="page">Guides</a><a href="https://github.com/Ryan-yang125/skill-manager">GitHub</a><a class="nav-download" href="https://github.com/Ryan-yang125/skill-manager/releases/latest">Download</a></nav></div></header>
+    <main id="main">
+      <header class="guide-hero shell"><nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/skill-manager/">Home</a><span>/</span><a href="/skill-manager/guides/">Guides</a><span>/</span><span aria-current="page">Codex locations</span></nav><p class="eyebrow">Guide · Codex paths</p><h1>Where Codex skills live on your machine</h1><p class="lede">A path-by-path map for finding global skills, understanding shared roots, and recognizing duplicate installs.</p><div class="guide-meta"><span>Updated July 23, 2026</span><span>5 min read</span><span>Skill Manager project</span></div></header>
+      <div class="guide-layout shell">
+        <article class="article-body">
+          <div class="answer-block"><span class="answer-block__label">Direct answer</span><p>Skill Manager scans <code>~/.codex/skills</code> for Codex-specific global skills and <code>~/.agents/skills</code> for shared global skills. Each immediate child folder containing a <code>SKILL.md</code> becomes an inventory record. The current release focuses on global user roots, so project-level skill folders require separate inspection.</p></div>
+
+          <h2 id="roots">The two Codex-related roots</h2>
+          <div class="table-wrap"><table><thead><tr><th>Path</th><th>Role in Skill Manager</th><th>Typical use</th></tr></thead><tbody>
+            <tr><td><code>~/.codex/skills</code></td><td>Codex global root</td><td>Skills intended for the user's Codex setup</td></tr>
+            <tr><td><code>~/.agents/skills</code></td><td>Shared global root</td><td>Skills installed for use across compatible agents</td></tr>
+            <tr><td>Project skill folders</td><td>Current release scope excludes these paths</td><td>Repository-specific instructions and workflows</td></tr>
+          </tbody></table></div>
+          <p>A missing root is a valid state. It can mean that you use a shared root, that an installer chose a different location, or that no global skills have been installed for that agent.</p>
+
+          <h2 id="inventory">List the detected paths</h2>
+          <div class="command-block"><div class="command-block__bar"><span>Path inventory</span><button class="copy-button" type="button" data-copy="npx github:Ryan-yang125/skill-manager audit" aria-label="Copy audit command">Copy</button></div><pre><code><span class="prompt">$</span> npx github:Ryan-yang125/skill-manager audit</code></pre></div>
+          <p>The report should preserve four related fields: root path, full skill path, path relative to the root, and agent classification. Together they tell you where the skill lives and which inventory bucket owns it.</p>
+
+          <h2 id="packages">Trace package and source metadata</h2>
+          <p>Folder location shows scope. Package metadata adds provenance. Skill Manager reads installed package information when available and falls back to local grouping when a manifest is missing. Useful fields include the source name, source URL, plugin name, install time, update time, and whether the metadata was inferred.</p>
+          <p>Inferred metadata deserves a quick review before cleanup. Open the skill content, inspect nearby files, and compare the source repository with the version on disk.</p>
+
+          <h2 id="duplicates">Recognize duplicate locations</h2>
+          <p>The same skill name can appear in shared and Codex-specific roots. That can be intentional when each copy targets a different agent version. It can also indicate a stale install left behind by an older package manager.</p>
+          <ul class="checklist"><li>Compare full paths and source URLs.</li><li>Read both <code>SKILL.md</code> files.</li><li>Check modification dates and local usage evidence.</li><li>Choose a canonical copy with a clear update route.</li><li>Archive the confirmed duplicate through a recoverable ledger.</li></ul>
+
+          <h2 id="manual">Inspect with standard shell tools</h2>
+          <div class="command-block"><div class="command-block__bar"><span>Manual spot check</span><button class="copy-button" type="button" data-copy="find ~/.codex/skills ~/.agents/skills -name SKILL.md -print 2>/dev/null" aria-label="Copy manual find command">Copy</button></div><pre><code><span class="prompt">$</span> find ~/.codex/skills ~/.agents/skills -name SKILL.md -print 2&gt;/dev/null</code></pre></div>
+          <p>The shell result is useful for a quick existence check. Skill Manager adds source grouping, evidence, context estimates, archive history, and exportable reports.</p>
+
+          <section class="faq" aria-labelledby="faq-title"><h2 id="faq-title">Codex path FAQ</h2><details><summary>Where does Skill Manager look for Codex skills?</summary><p>The current release scans <code>~/.codex/skills</code> and the shared <code>~/.agents/skills</code> root.</p></details><details><summary>Does Skill Manager scan project-level skills?</summary><p>The current release focuses on global user roots. Inspect repository-specific skill folders from the project itself.</p></details><details><summary>Why can the same skill appear twice?</summary><p>A package can install copies into multiple roots, or a shared skill can coexist with an agent-specific copy. Compare path, source, content, and usage before choosing a canonical copy.</p></details></section>
+          <div class="article-cta"><h2>Map every global root</h2><p>Run a local audit and keep exact paths, provenance, and evidence in one report.</p><a class="button" href="/skill-manager/#run">Run Skill Manager</a></div>
+        </article>
+        <aside class="toc" aria-label="On this page"><p class="toc__title">On this page</p><ol><li><a href="#roots">Codex-related roots</a></li><li><a href="#inventory">List detected paths</a></li><li><a href="#packages">Source metadata</a></li><li><a href="#duplicates">Duplicate locations</a></li><li><a href="#manual">Manual check</a></li><li><a href="#faq-title">FAQ</a></li></ol></aside>
+      </div>
+    </main>
+    <footer class="site-footer"><div class="shell"><div class="site-footer__grid"><div><a class="brand" href="/skill-manager/"><span class="brand__mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16M4 12h11M4 19h16" stroke="currentColor" stroke-width="2.5"/><path d="M18 9v6" stroke="#e85d36" stroke-width="2.5"/></svg></span>Skill Manager</a><p class="site-footer__copy">A local-first inventory and health check for agent skills. Built in the open under the MIT License.</p></div><nav class="footer-links" aria-label="Footer navigation"><a href="/skill-manager/guides/">Guides</a><a href="/skill-manager/pricing.md">Pricing</a><a href="https://github.com/Ryan-yang125/skill-manager">Source code</a><a href="https://github.com/Ryan-yang125/skill-manager/releases/latest">Releases</a><a href="https://github.com/Ryan-yang125/skill-manager/blob/main/docs/privacy.md">Privacy</a><a href="https://github.com/Ryan-yang125/skill-manager/issues">Issues</a></nav></div><div class="footer-base"><span>© <span data-current-year>2026</span> Skill Manager</span><span>Local-first · Free forever · MIT</span></div></div></footer>
+    <script src="/skill-manager/assets/site.js" defer></script>
+  </body>
+</html>

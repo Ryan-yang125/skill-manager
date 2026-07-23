@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Skill Manager — Audit Agent Skills on Your Machine</title>
+    <meta name="description" content="Audit Codex, Claude, and shared agent skills from one local-first CLI and desktop app. Trace usage evidence, estimate catalog context, and archive safely. Free and open source.">
+    <link rel="canonical" href="https://ryan-yang125.github.io/skill-manager/">
+    <link rel="icon" href="/skill-manager/assets/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/skill-manager/assets/styles.css">
+    <meta name="theme-color" content="#101d33">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Skill Manager">
+    <meta property="og:title" content="Skill Manager — Your agent skills keep receipts">
+    <meta property="og:description" content="A local-first inventory and health check for Codex, Claude, and shared agent skills. Free, open source, and reversible.">
+    <meta property="og:url" content="https://ryan-yang125.github.io/skill-manager/">
+    <meta property="og:image" content="https://ryan-yang125.github.io/skill-manager/assets/og-card.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Skill Manager audit receipt with shared, Codex, and Claude skill paths">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Skill Manager — Audit local agent skills">
+    <meta name="twitter:description" content="See origin, usage evidence, catalog context estimates, and archive history across your local agent skills.">
+    <meta name="twitter:image" content="https://ryan-yang125.github.io/skill-manager/assets/og-card.png">
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://ryan-yang125.github.io/skill-manager/#software",
+            "name": "Skill Manager",
+            "url": "https://ryan-yang125.github.io/skill-manager/",
+            "downloadUrl": "https://github.com/Ryan-yang125/skill-manager/releases/latest",
+            "codeRepository": "https://github.com/Ryan-yang125/skill-manager",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": ["macOS", "Windows", "Linux"],
+            "license": "https://opensource.org/license/mit",
+            "isAccessibleForFree": true,
+            "description": "A local-first CLI and desktop app for auditing, understanding, archiving, and restoring agent skills.",
+            "featureList": [
+              "Scan shared, Codex, and Claude skill roots",
+              "Trace local usage evidence",
+              "Estimate skill catalog metadata context",
+              "Archive and restore skills with a durable ledger",
+              "Export Markdown and JSON reports"
+            ],
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD",
+              "availability": "https://schema.org/InStock"
+            },
+            "author": { "@id": "https://ryan-yang125.github.io/skill-manager/#organization" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://ryan-yang125.github.io/skill-manager/#organization",
+            "name": "Skill Manager",
+            "url": "https://ryan-yang125.github.io/skill-manager/",
+            "sameAs": ["https://github.com/Ryan-yang125/skill-manager"]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://ryan-yang125.github.io/skill-manager/#website",
+            "name": "Skill Manager",
+            "url": "https://ryan-yang125.github.io/skill-manager/",
+            "publisher": { "@id": "https://ryan-yang125.github.io/skill-manager/#organization" },
+            "inLanguage": "en"
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="site-header__inner shell">
+        <a class="brand" href="/skill-manager/" aria-label="Skill Manager home">
+          <span class="brand__mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M4 5h16M4 12h11M4 19h16" stroke="currentColor" stroke-width="2.5"/>
+              <path d="M18 9v6" stroke="#e85d36" stroke-width="2.5"/>
+            </svg>
+          </span>
+          Skill Manager
+        </a>
+        <nav class="site-nav" aria-label="Primary navigation">
+          <a href="/skill-manager/#workflow">How it works</a>
+          <a href="/skill-manager/guides/">Guides</a>
+          <a href="https://github.com/Ryan-yang125/skill-manager">GitHub</a>
+          <a class="nav-download" href="https://github.com/Ryan-yang125/skill-manager/releases/latest">Download</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero shell" aria-labelledby="hero-title">
+        <div>
+          <p class="eyebrow">Local-first · MIT · $0 forever</p>
+          <h1 id="hero-title">Your agent skills keep <em>receipts.</em></h1>
+          <p class="lede">See where every Codex and Claude skill came from, when local session evidence last referenced it, and how much discovery context its name and description may occupy. Archive with a ledger. Restore to the original path.</p>
+          <div class="hero__actions">
+            <a class="button" href="#run">Run the audit <span aria-hidden="true">↓</span></a>
+            <a class="button button--quiet" href="https://github.com/Ryan-yang125/skill-manager/releases/latest">Download desktop</a>
+          </div>
+          <ul class="trust-row" aria-label="Product attributes">
+            <li>Local processing</li>
+            <li>Account-free</li>
+            <li>Zero telemetry</li>
+          </ul>
+        </div>
+
+        <aside class="receipt" aria-label="Sample audit receipt from release verification">
+          <div class="receipt__head">
+            <span>Scan receipt / v0.6.0</span>
+            <span class="receipt__status">Verified</span>
+          </div>
+          <div class="receipt__body">
+            <p class="receipt__label">Default global roots covered</p>
+            <p class="receipt__value">3<span>supported roots</span></p>
+            <ul class="root-list">
+              <li><span class="root-dot" aria-hidden="true"></span><code>~/.agents/skills</code><strong>ready</strong></li>
+              <li><span class="root-dot" aria-hidden="true"></span><code>~/.codex/skills</code><strong>ready</strong></li>
+              <li><span class="root-dot" aria-hidden="true"></span><code>~/.claude/skills</code><strong>ready</strong></li>
+            </ul>
+          </div>
+          <div class="receipt__foot">Release verification: CLI audit · JSON schema · dry-run safety · checksums</div>
+        </aside>
+      </section>
+
+      <section class="section section--ink" id="run" aria-labelledby="run-title">
+        <div class="shell">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Start here</p>
+              <h2 id="run-title">One command. A complete local inventory.</h2>
+            </div>
+            <p class="section-note">The audit reads supported skill folders and local session evidence. Your files stay on your machine.</p>
+          </div>
+
+          <div class="command-block">
+            <div class="command-block__bar">
+              <span>Terminal</span>
+              <button class="copy-button" type="button" data-copy="npx github:Ryan-yang125/skill-manager audit" aria-label="Copy audit command">Copy</button>
+            </div>
+            <pre><code><span class="prompt">$</span> npx github:Ryan-yang125/skill-manager audit</code></pre>
+          </div>
+
+          <div class="command-block" style="margin-top: 22px">
+            <div class="command-block__bar">
+              <span>Install the Agent Skill</span>
+              <button class="copy-button" type="button" data-copy="npx skills add Ryan-yang125/skill-manager --skill audit-agent-skills -g -y" aria-label="Copy Agent Skill install command">Copy</button>
+            </div>
+            <pre><code><span class="prompt">$</span> npx skills add Ryan-yang125/skill-manager --skill audit-agent-skills -g -y</code></pre>
+          </div>
+
+          <div class="flow-grid" id="workflow">
+            <article class="flow-card">
+              <span class="flow-card__label">READ</span>
+              <h3>Inventory the roots</h3>
+              <p>Scan shared, Codex, and Claude global skill folders. Capture each path, package source, file size, and instruction content.</p>
+            </article>
+            <article class="flow-card">
+              <span class="flow-card__label">TRACE</span>
+              <h3>Match local evidence</h3>
+              <p>Search Codex and Claude session logs for traceable references. Every count points back to evidence on disk.</p>
+            </article>
+            <article class="flow-card">
+              <span class="flow-card__label">DECIDE</span>
+              <h3>Keep, review, archive</h3>
+              <p>Use age, overlap, context size, and evidence coverage to make a human decision. Archive and restore stay reversible.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="capabilities-title">
+        <div class="shell">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">The inventory layer</p>
+              <h2 id="capabilities-title">Know what loads before the prompt.</h2>
+            </div>
+            <p class="section-note">Agent skills multiply across folders, plugins, and package sources. Skill Manager turns that filesystem sprawl into an inspectable library.</p>
+          </div>
+          <div class="capability-grid">
+            <article class="capability">
+              <span class="capability__glyph" aria-hidden="true">~/</span>
+              <h3>Origin and path</h3>
+              <p>See the exact folder, agent root, package metadata, source URL, and every detected location for a skill.</p>
+            </article>
+            <article class="capability">
+              <span class="capability__glyph" aria-hidden="true">EV</span>
+              <h3>Usage evidence</h3>
+              <p>Review usage count, last reference time, session kind, confidence, and the local evidence path behind each match.</p>
+            </article>
+            <article class="capability">
+              <span class="capability__glyph" aria-hidden="true">CTX</span>
+              <h3>Catalog context estimate</h3>
+              <p>Estimate the discovery metadata formed by each skill name and description, then compare that catalog footprint across the inventory.</p>
+            </article>
+            <article class="capability">
+              <span class="capability__glyph" aria-hidden="true">↺</span>
+              <h3>Reversible cleanup</h3>
+              <p>Write a durable ledger before moving a skill. Restore returns it to the original path and protects existing folders.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="evidence-title">
+        <div class="shell">
+          <div class="evidence-band">
+            <div class="evidence-band__number">
+              <strong>3</strong>
+              <span>default global skill roots covered in v0.6.0</span>
+            </div>
+            <div class="evidence-band__copy">
+              <p class="eyebrow">Evidence over guesses</p>
+              <h2 id="evidence-title">Every signal stays inspectable.</h2>
+              <p>Skill Manager records the session path, evidence kind, timestamp, and confidence behind every usage match. Cleanup reports export as Markdown and JSON for review.</p>
+              <p class="inline-note"><strong>Interpretation rule:</strong> zero matched evidence means “review this skill.” Session coverage can be incomplete, and rare skills may still be essential.</p>
+              <a href="/skill-manager/guides/find-unused-agent-skills/">Read the evidence guide →</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="guides-title">
+        <div class="shell">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Field guides</p>
+              <h2 id="guides-title">Answers for a growing skills folder.</h2>
+            </div>
+            <p class="section-note">Practical references for finding skill locations, reading usage signals, reducing duplicates, and keeping every cleanup recoverable.</p>
+          </div>
+          <div class="guide-grid">
+            <a class="guide-card" href="/skill-manager/guides/agent-skills-health-check/">
+              <span class="guide-card__tag">Health check</span>
+              <h3>Audit agent skills from the terminal</h3>
+              <p>Build a trustworthy inventory across Codex, Claude, and shared roots.</p>
+              <span class="guide-card__arrow" aria-hidden="true">↗</span>
+            </a>
+            <a class="guide-card" href="/skill-manager/guides/find-unused-agent-skills/">
+              <span class="guide-card__tag">Usage evidence</span>
+              <h3>Find unused agent skills safely</h3>
+              <p>Combine session evidence, recency, overlap, and human review.</p>
+              <span class="guide-card__arrow" aria-hidden="true">↗</span>
+            </a>
+            <a class="guide-card" href="/skill-manager/guides/codex-skills-locations/">
+              <span class="guide-card__tag">Codex</span>
+              <h3>Codex skill locations explained</h3>
+              <p>Understand shared, user, system, and project skill scope.</p>
+              <span class="guide-card__arrow" aria-hidden="true">↗</span>
+            </a>
+            <a class="guide-card" href="/skill-manager/guides/claude-skill-context-cost/">
+              <span class="guide-card__tag">Context</span>
+              <h3>Estimate Claude skill catalog context</h3>
+              <p>Measure name-and-description metadata and interpret the estimate within its defined scope.</p>
+              <span class="guide-card__arrow" aria-hidden="true">↗</span>
+            </a>
+            <a class="guide-card" href="/skill-manager/guides/duplicate-agent-skills/">
+              <span class="guide-card__tag">Conflicts</span>
+              <h3>Resolve duplicate agent skills</h3>
+              <p>Compare paths, sources, content, and agent precedence.</p>
+              <span class="guide-card__arrow" aria-hidden="true">↗</span>
+            </a>
+            <a class="guide-card" href="/skill-manager/guides/archive-restore-agent-skills/">
+              <span class="guide-card__tag">Recovery</span>
+              <h3>Archive and restore skills safely</h3>
+              <p>Use dry runs, ledgers, path guards, and post-action scans.</p>
+              <span class="guide-card__arrow" aria-hidden="true">↗</span>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shell">
+          <div class="final-cta">
+            <div>
+              <p class="eyebrow">Free and open source</p>
+              <h2>Run your first skill audit.</h2>
+              <p>Use the CLI for a fast report, or download the desktop app for visual inspection, file previews, archive history, and restore.</p>
+            </div>
+            <div class="hero__actions">
+              <a class="button" href="#run">Copy CLI command</a>
+              <a class="button button--quiet" href="https://github.com/Ryan-yang125/skill-manager/releases/latest">Get the app</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell">
+        <div class="site-footer__grid">
+          <div>
+            <a class="brand" href="/skill-manager/">
+              <span class="brand__mark" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16M4 12h11M4 19h16" stroke="currentColor" stroke-width="2.5"/><path d="M18 9v6" stroke="#e85d36" stroke-width="2.5"/></svg>
+              </span>
+              Skill Manager
+            </a>
+            <p class="site-footer__copy">A local-first inventory and health check for agent skills. Built in the open under the MIT License.</p>
+          </div>
+          <nav class="footer-links" aria-label="Footer navigation">
+            <a href="/skill-manager/guides/">Guides</a>
+            <a href="/skill-manager/pricing.md">Pricing</a>
+            <a href="https://github.com/Ryan-yang125/skill-manager">Source code</a>
+            <a href="https://github.com/Ryan-yang125/skill-manager/releases/latest">Releases</a>
+            <a href="https://github.com/Ryan-yang125/skill-manager/blob/main/docs/privacy.md">Privacy</a>
+            <a href="https://github.com/Ryan-yang125/skill-manager/issues">Issues</a>
+          </nav>
+        </div>
+        <div class="footer-base">
+          <span>© <span data-current-year>2026</span> Skill Manager</span>
+          <span>Local-first · Free forever · MIT</span>
+        </div>
+      </div>
+    </footer>
+    <script src="/skill-manager/assets/site.js" defer></script>
+  </body>
+</html>
