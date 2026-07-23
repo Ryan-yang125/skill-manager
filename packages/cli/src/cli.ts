@@ -152,11 +152,11 @@ export function defaultUserDataDir(
   env: NodeJS.ProcessEnv = process.env
 ): string {
   if (env.SKILL_MANAGER_DATA_DIR) return resolveInputPath(env.SKILL_MANAGER_DATA_DIR, homeDir, process.cwd());
-  if (platform === "darwin") return path.join(homeDir, "Library", "Application Support", "Skill Manager");
+  if (platform === "darwin") return path.posix.join(homeDir, "Library", "Application Support", "Skill Manager");
   if (platform === "win32") {
     return path.win32.join(env.APPDATA ?? path.win32.join(homeDir, "AppData", "Roaming"), "Skill Manager");
   }
-  return path.join(env.XDG_CONFIG_HOME ?? path.join(homeDir, ".config"), "Skill Manager");
+  return path.posix.join(env.XDG_CONFIG_HOME ?? path.posix.join(homeDir, ".config"), "Skill Manager");
 }
 
 function parseArguments(argv: string[]): ParsedArguments {

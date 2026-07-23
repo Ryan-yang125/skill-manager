@@ -345,13 +345,17 @@ function matchingTermsByName(observedSkillName: string, terms: Map<string, Skill
 }
 
 function matchingTermsByPath(observedText: string, terms: Map<string, SkillUsageTerms>): SkillUsageTerms[] {
-  const slashText = observedText.replaceAll("\\", "/");
+  const slashText = normalizedEvidencePathText(observedText);
   return [...terms.values()].filter((term) =>
     term.pathTerms.some((candidate) => {
-      const slashCandidate = candidate.replaceAll("\\", "/");
+      const slashCandidate = normalizedEvidencePathText(candidate);
       return slashCandidate.length > 0 && slashText.includes(slashCandidate);
     })
   );
+}
+
+function normalizedEvidencePathText(value: string): string {
+  return value.replaceAll("\\", "/").replace(/\/{2,}/g, "/");
 }
 
 function isPotentialUsageLine(line: string): boolean {
