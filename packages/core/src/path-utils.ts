@@ -22,11 +22,12 @@ export function stableId(value: string): string {
 }
 
 export function safePathComponent(value: string): string {
-  const cleaned = value
+  let cleaned = value
     .replace(/[^a-zA-Z0-9._-]/g, "-")
     .replace(/-+/g, "-")
-    .replace(/^\.+/, "")
-    .replace(/^-+|-+$/g, "");
+    .replace(/^\.+/, "");
+  if (cleaned.startsWith("-")) cleaned = cleaned.slice(1);
+  if (cleaned.endsWith("-")) cleaned = cleaned.slice(0, -1);
   return cleaned || "skill";
 }
 

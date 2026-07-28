@@ -29,7 +29,11 @@ function stableId(value) {
   return Buffer.from(value, "utf8").toString("base64url");
 }
 function safePathComponent(value) {
-  const cleaned = value.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").replace(/^\.+/, "").replace(/^-+|-+$/g, "");
+  let cleaned = value.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").replace(/^\.+/, "");
+  if (cleaned.startsWith("-"))
+    cleaned = cleaned.slice(1);
+  if (cleaned.endsWith("-"))
+    cleaned = cleaned.slice(0, -1);
   return cleaned || "skill";
 }
 async function pathExists(inputPath) {
@@ -1829,10 +1833,10 @@ var package_default = {
   },
   devDependencies: {
     "@skill-manager/core": "workspace:*",
-    "@types/node": "^22.19.3",
+    "@types/node": "^22.20.1",
     esbuild: "^0.28.1",
     typescript: "^5.9.3",
-    vitest: "^4.0.16"
+    vitest: "^4.1.10"
   }
 };
 
