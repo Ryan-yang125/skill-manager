@@ -671,6 +671,13 @@ describe("Path safety", () => {
     expect(safePathComponent("../bad skill/名字")).toBe("bad-skill");
     expect(safePathComponent("////")).toBe("skill");
   });
+
+  it("handles long attacker-controlled separator runs", () => {
+    const repeatedSeparators = "-".repeat(100_000);
+
+    expect(safePathComponent(`${repeatedSeparators}agent${repeatedSeparators}`)).toBe("agent");
+    expect(safePathComponent(`${repeatedSeparators}/${repeatedSeparators}`)).toBe("skill");
+  });
 });
 
 async function writeSkill(relativeDir: string, name: string, description: string): Promise<string> {
