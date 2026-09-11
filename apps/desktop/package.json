@@ -54,7 +54,7 @@
     "electron-builder": "^26.0.12",
     "esbuild": "^0.28.1",
     "vite": "^7.3.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "build": {
     "appId": "com.yangrui.skillmanager",
