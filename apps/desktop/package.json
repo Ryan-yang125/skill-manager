@@ -50,7 +50,7 @@
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
-    "electron": "^39.2.7",
+    "electron": "^41.10.6",
     "electron-builder": "^26.0.12",
     "esbuild": "^0.28.1",
     "vite": "^7.3.0",
